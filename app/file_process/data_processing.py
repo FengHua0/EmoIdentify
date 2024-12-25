@@ -77,25 +77,34 @@ def preprocess_audio(input_data, sr=16000, pre_emph_coeff=0.97):
 def process_audio_folder_with_categories(input_folder, output_folder, sr=16000, pre_emph_coeff=0.97):
     """
     批量处理音频文件夹中的音频文件，并保存处理后的结果到输出文件夹。
+    输出的音频文件会保存到以 'processed_' 为前缀命名的文件夹中，并保留原始的文件夹结构。
+
     input:
     input_folder ： 输入文件夹路径，包含多个类别子文件夹
     output_folder ： 输出文件夹路径，处理后的音频将保存到此
     sr ： 音频采样率，默认16000Hz
     pre_emph_coeff ： 预加重系数，默认值为0.97
+
     Returns:
-    None
+    str： 返回输出的根文件夹路径（处理后的文件夹路径）
     """
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)  # 创建输出文件夹
+    # 构建输出文件夹的根路径，名字为 'processed_' + input_folder 的文件夹名
+    input_folder_name = os.path.basename(os.path.normpath(input_folder))  # 获取输入文件夹的名称
+    processed_root_path = os.path.join(output_folder, f"processed_{input_folder_name}")
+
+    if not os.path.exists(processed_root_path):
+        os.makedirs(processed_root_path)  # 创建根文件夹
 
     # 获取所有类别子文件夹
     categories = [cat for cat in os.listdir(input_folder) if os.path.isdir(os.path.join(input_folder, cat))]
+
+    # 遍历每个类别并处理音频
     for category in categories:
         category_input_path = os.path.join(input_folder, category)
-        category_output_path = os.path.join(output_folder, category)
+        category_output_path = os.path.join(processed_root_path, category)  # 输出路径保留原类别结构
 
         if not os.path.exists(category_output_path):
-            os.makedirs(category_output_path)  # 创建类别输出文件夹
+            os.makedirs(category_output_path)  # 创建该类别的输出文件夹
 
         # 获取当前类别下所有音频文件
         audio_files = [f for f in os.listdir(category_input_path) if f.endswith('.wav')]
@@ -103,7 +112,7 @@ def process_audio_folder_with_categories(input_folder, output_folder, sr=16000, 
 
         for audio_file in audio_files:
             input_path = os.path.join(category_input_path, audio_file)
-            output_path = os.path.join(category_output_path, audio_file)
+            output_path = os.path.join(category_output_path, audio_file)  # 保持文件名不变
 
             try:
                 # 处理音频文件
@@ -116,14 +125,11 @@ def process_audio_folder_with_categories(input_folder, output_folder, sr=16000, 
 
                 # 保存处理后的音频
                 sf.write(output_path, y_processed, sr)
+
             except Exception as e:
                 print(f"处理文件 {audio_file} 时出错: {e}")
 
         print(f"类别 {category} 处理完毕")
 
-
-if __name__ == '__main__':
-    input_folder = '../../AudioWAV'  # 输入文件夹路径
-    output_folder = '../../EnglishDataset'  # 输出文件夹路径
-    process_audio_folder_with_categories(input_folder, output_folder)
-    print("所有语音文件预处理完成")
+    # 返回处理后的根文件夹路径（即 'processed_' 文件夹）
+    return processed_root_path

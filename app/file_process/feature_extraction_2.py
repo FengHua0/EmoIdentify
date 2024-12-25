@@ -48,23 +48,27 @@ def two_features_extract(input_data, category=None, sr=16000, n_mfcc=13):
         return []
 
 
-def process_audio_split(input_folder, output_folder, sr=16000, n_mfcc=13):
+def process_audio_folder(input_folder, output_folder, sr=16000, n_mfcc=13):
     """
     循环处理 train, val, test 文件夹，提取每个音频文件的MFCC特征并保存为CSV。
     input:
-    input_folder ： 包含train, val, test子文件夹的音频数据集路径
+    input_folder ： 包含 train, val, test 子文件夹的音频数据集路径
     output_folder ： 保存提取特征的CSV文件路径
     sr ： 采样率，默认16000
     n_mfcc ： 提取的MFCC特征数量，默认13
     Returns:
-    None
+    str: 返回保存特征的文件夹路径
     """
     if not os.path.exists(input_folder):
         print(f"音频文件夹 {input_folder} 不存在。")
         return
 
-    # 确保输出文件夹存在
-    os.makedirs(output_folder, exist_ok=True)
+    # 获取输入文件夹的名称（不包含路径部分）
+    input_folder_name = os.path.basename(os.path.normpath(input_folder))
+
+    # 创建一个新的文件夹来保存输出的 CSV 文件，名字与输入文件夹相同
+    output_dataset_folder = os.path.join(output_folder, input_folder_name)
+    os.makedirs(output_dataset_folder, exist_ok=True)
 
     splits = ["train", "val", "test"]  # 分别处理 train, val, test 文件夹
     for split in splits:
@@ -99,12 +103,11 @@ def process_audio_split(input_folder, output_folder, sr=16000, n_mfcc=13):
         # 保存特征到CSV文件
         columns = ["file_name", "category"] + [f"mfcc_{i + 1}" for i in range(n_mfcc)]
         split_df = pd.DataFrame(features, columns=columns)
-        output_file = os.path.join(output_folder, f"{split}_features.csv")
+
+        # 生成CSV文件的输出路径，文件名为 train.csv, val.csv, test.csv
+        output_file = os.path.join(output_dataset_folder, f"{split}.csv")
         split_df.to_csv(output_file, index=False)
         print(f"数据集 {split} 的特征已保存到: {output_file}")
 
-
-if __name__ == '__main__':
-    audio_folder = '../processed_dataset_en'  # 输入数据集文件夹路径
-    output_folder = '../features/Two_dimensional'  # 输出CSV文件路径
-    process_audio_split(audio_folder, output_folder)
+    # 返回保存特征文件的文件夹路径
+    return output_dataset_folder
