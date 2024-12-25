@@ -19,5 +19,3 @@ __pycache__/
 # 虚拟环境
 env/
 venv/
-RawDataSet/
-ProcessedDataSet/
