@@ -3,6 +3,7 @@ document.getElementById('uploadForm').addEventListener('submit', function (event
 
     const formData = new FormData();
     const audioFile = document.getElementById('audioFile').files[0];
+    const modelSelection = document.getElementById('modelSelection').value;  // 获取用户选择的模型类型
 
     // 检查是否选择了文件
     if (!audioFile) {
@@ -10,7 +11,8 @@ document.getElementById('uploadForm').addEventListener('submit', function (event
         return;
     }
 
-    formData.append('audio', audioFile);
+    formData.append('audio', audioFile);  // 添加音频文件到 FormData
+    formData.append('model', modelSelection);  // 添加用户选择的模型类型
 
     // 更新状态：上传中
     document.getElementById('result').textContent = 'Uploading file...';
@@ -18,7 +20,7 @@ document.getElementById('uploadForm').addEventListener('submit', function (event
     // 使用 fetch 发送 POST 请求
     fetch('/predict', {
         method: 'POST',
-        body: formData
+        body: formData  // 发送包含音频文件和选择模型的 FormData
     })
         .then(response => {
             if (!response.ok) {

@@ -7,7 +7,7 @@ import torch.optim as optim
 from sklearn.preprocessing import LabelEncoder
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
 from torch.utils.data import Dataset, DataLoader
-
+import joblib  # 用于保存和加载 LabelEncoder
 
 # 自定义数据集
 class EmotionDataset(Dataset):
@@ -65,6 +65,12 @@ def load_and_group_features(data_folder, file_name):
     # 使用 LabelEncoder 编码类别标签
     label_encoder = LabelEncoder()
     labels = label_encoder.fit_transform(labels)
+
+    # 保存 LabelEncoder 到文件
+    folder_name = os.path.basename(input_folder.rstrip("/"))  # 获取 input_folder 的最后一个文件夹名
+    encoder_path = os.path.join("../models/label_encoder", f"{folder_name}_label_encoder.joblib")
+    joblib.dump(label_encoder, encoder_path)
+    print(f"LabelEncoder 已保存到: {encoder_path}")
 
     # 按 file_name 分组，聚合特征
     grouped_features = []
@@ -142,14 +148,14 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
 
         val_acc = val_correct / len(val_loader.dataset)
 
+        print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, "
+              f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
         # 保存最优模型
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             print(f"保存最优模型 (Epoch {epoch + 1}) 到: {model_output}")
             torch.save(model.state_dict(), model_output)
 
-        print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, "
-              f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
 
 # 主程序
@@ -157,7 +163,7 @@ if __name__ == "__main__":
     # 用户提供的路径
     input_folder = "../features/feature_extraction_2/CREMA-D"  # 包含 train.csv, val.csv, test.csv 的文件夹
     model_output = "../models/rnn_2.pth"  # 模型保存路径
-    pretrained_model_path = None  # 如果有预训练模型文件，设置路径，例如 "../models/rnn_2.pth"
+    pretrained_model_path = "../models/premodel/rnn_2.pth"  # 预训练模型文件
 
     # 加载和分组数据
     train_features, train_labels, label_encoder = load_and_group_features(input_folder, "train.csv")
@@ -182,5 +188,5 @@ if __name__ == "__main__":
 
     # 训练模型
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=200,
+    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=1,
                 pretrained_model_path=pretrained_model_path)

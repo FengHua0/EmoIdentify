@@ -11,7 +11,6 @@ def svm_predict(features):
     returns:
     dict: 包含预测类别的结果
     """
-
     # 配置路径
     MODEL_PATH = 'models/svm_model.joblib'
 

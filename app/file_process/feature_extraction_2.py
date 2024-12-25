@@ -22,12 +22,9 @@ def two_features_extract(input_data, category=None, sr=16000, n_mfcc=13):
     try:
         # 判断输入类型
         if isinstance(input_data, str):
-            file_path = input_data
-            y, _ = librosa.load(file_path, sr=sr)
-            file_name = os.path.basename(file_path)
+            y, _ = librosa.load(input_data, sr=sr)
         elif isinstance(input_data, np.ndarray):
             y = input_data
-            file_name = "in_memory_audio"
         else:
             raise ValueError("输入数据必须是文件路径 (str) 或音频数据 (NumPy 数组)。")
 
@@ -39,8 +36,9 @@ def two_features_extract(input_data, category=None, sr=16000, n_mfcc=13):
         # 提取MFCC特征
         mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
 
-        # 将每个时间帧的MFCC特征转为一行
-        features_list = [[file_name, category] + mfccs[:, t].tolist() for t in range(mfccs.shape[1])]
+        # 将每一列（时间帧）转为一个特征列表
+        features_list = mfccs.T.tolist()
+
         return features_list
 
     except Exception as e:

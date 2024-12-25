@@ -42,10 +42,6 @@ def one_features_extract(input_data, sr=16000, n_mfcc=13):
         print(f"提取特征时出错: {e}")
         return None
 
-
-import os
-import pandas as pd
-
 def process_audio_folder(input_folder, output_folder, sr=16000, n_mfcc=13):
     """
     循环处理音频数据集文件夹，提取每个文件的MFCC特征并保存为CSV。

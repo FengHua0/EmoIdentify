@@ -57,6 +57,25 @@
             border-color: #4CAF50;
         }
 
+        /* 训练模型选择框样式 */
+        .form-container select {
+            margin: 15px 0;
+            padding: 12px;
+            font-size: 1rem;
+            color: #333;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .form-container select:hover {
+            border-color: #4CAF50;
+        }
+
         /* 按钮样式 */
         .form-container button {
             background: linear-gradient(135deg, #4CAF50, #2E7D32);
@@ -108,11 +127,18 @@
         <form id="uploadForm" enctype="multipart/form-data">
             <label for="audioFile">Upload Your Audio File:</label>
             <input type="file" id="audioFile" name="audio" accept=".wav, .mp3" required>
+
+            <!-- 模型选择下拉菜单 -->
+            <label for="modelSelection">Select a Model:</label>
+            <select id="modelSelection" name="modelSelection">
+                <option value="svm">SVM</option>
+                <option value="rnn">RNN</option>
+            </select>
+
             <button type="submit" id="predictButton">Analyze Emotion</button>
         </form>
         <div id="result">No result yet.</div>
     </div>
-
 
     <!-- 引入外部 JavaScript 文件 -->
     <script src="/static/js/script.js"></script>
