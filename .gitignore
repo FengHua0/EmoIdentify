@@ -5,6 +5,7 @@
 **/*.peak
 **/*.zip
 **/*.tag
+**/*.csv
 
 # Python编译文件
 __pycache__/
