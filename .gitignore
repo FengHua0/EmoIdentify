@@ -1,0 +1,23 @@
+# 忽略所有的 .wav 和 .mp3 文件
+**/*.wav
+**/*.mp3
+**/*.lab
+**/*.peak
+**/*.zip
+**/*.tag
+
+# Python编译文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 临时文件
+*.log
+*.tmp
+.idea/
+
+# 虚拟环境
+env/
+venv/
+RawDataSet/
+ProcessedDataSet/

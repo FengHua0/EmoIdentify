@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Prediction</title>
+    <style>
+        /* 页面整体样式 */
+        body {
+            text-align: center;
+        }
+
+        /* 顶部标题 */
+        h1 {
+            margin: 50px 0 30px;
+            font-size: 3rem;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+            color: #0a0a0a;
+        }
+
+        /* 表单外层容器 */
+        .form-container {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 30px;
+            margin: auto;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+            text-align: center;
+        }
+
+        /* 表单标题 */
+        .form-container label {
+            font-size: 1.2rem;
+            color: #FFD700;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* 文件选择框样式 */
+        .form-container input[type="file"] {
+            margin: 15px 0;
+            padding: 12px;
+            font-size: 1rem;
+            color: #333;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .form-container input[type="file"]:hover {
+            border-color: #4CAF50;
+        }
+
+        /* 按钮样式 */
+        .form-container button {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .form-container button:hover {
+            background: linear-gradient(135deg, #66BB6A, #388E3C);
+        }
+
+        /* 结果展示区域 */
+        #result {
+            margin-top: 20px;
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Footer 样式 */
+        footer {
+            margin-top: 50px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        footer a {
+            color: #FFD700;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Emotion Prediction</h1>
+
+    <div class="form-container">
+        <form id="uploadForm" enctype="multipart/form-data">
+            <label for="audioFile">Upload Your Audio File:</label>
+            <input type="file" id="audioFile" name="audio" accept=".wav, .mp3" required>
+            <button type="submit" id="predictButton">Analyze Emotion</button>
+        </form>
+        <div id="result">No result yet.</div>
+    </div>
+
+
+    <!-- 引入外部 JavaScript 文件 -->
+    <script src="/static/js/script.js"></script>
+</body>
+</html>
