@@ -4,14 +4,13 @@ from app.model_training.RNN_two_training import EmotionClassifier
 import joblib
 
 
-#TODO 反编码有问题
 def rnn_predict(features):
     """
     使用训练好的 RNN 模型进行预测，并反编码为情感名称。
     Args:
         features: 二维特征数据 (列表或数组)，每行是一个时间步的特征 (13维)
     Returns:
-        dict: 包含预测类别和情感名称的结果
+        dict: 包含情感名称的结果
     """
     # 模型和编码器路径
     MODEL_PATH = "models/rnn_2.pth"
@@ -47,10 +46,9 @@ def rnn_predict(features):
         # 将数字类别转换为情感名称
         predicted_emotion = label_encoder.inverse_transform([y_pred[0]])[0]  # 转换为情感名称
 
-        # 返回预测结果
+        # 返回预测结果，只包含情感名称
         result = {
-            'predicted_category': int(y_pred[0]),  # 返回数字类别
-            'predicted_emotion': predicted_emotion  # 返回情感名称
+            'predicted_category': predicted_emotion  # 返回情感名称
         }
         return result
 

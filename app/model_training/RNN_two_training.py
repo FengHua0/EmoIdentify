@@ -107,7 +107,7 @@ def collate_fn(batch):
 
 
 # 模型训练函数
-def train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=20,
+def train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=1,
                 pretrained_model_path=None):
     model.to(device)
     best_val_acc = 0.0
