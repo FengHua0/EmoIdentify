@@ -8,7 +8,7 @@ import librosa
 import numpy as np
 import os
 
-def two_features_extract(input_data, category=None, sr=16000, n_mfcc=13):
+def two_features_extract(input_data, sr=16000, n_mfcc=13):
     """
     处理单个音频文件或内存中的音频数据，提取MFCC特征并按帧展开。
     input:

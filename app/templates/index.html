@@ -102,6 +102,27 @@
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
 
+        /* MFCC特征展示区域 */
+        #mfcc-container {
+            margin-top: 30px;
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #mfcc-container h2 {
+            margin-bottom: 15px;
+            font-size: 1.6rem;
+            color: #333;
+        }
+
+        #mfcc-heatmap {
+            max-width: 100%;
+            height: auto;
+        }
+
         /* Footer 样式 */
         footer {
             margin-top: 50px;
@@ -138,6 +159,12 @@
             <button type="submit" id="predictButton">Analyze Emotion</button>
         </form>
         <div id="result">No result yet.</div>
+    </div>
+
+    <!-- MFCC 特征展示 -->
+    <div id="mfcc-container" style="display: none;">
+        <h3>MFCC Heatmap</h3>
+        <img id="mfcc-heatmap" src="" alt="MFCC Heatmap" style="max-width: 100%; height: auto;">
     </div>
 
     <!-- 引入外部 JavaScript 文件 -->

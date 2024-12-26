@@ -7,6 +7,7 @@ from app.file_process.feature_extraction_1 import one_features_extract
 from app.file_process.feature_extraction_2 import two_features_extract
 from app.predict.svm_predict import svm_predict
 from app.predict.RNN_predict import rnn_predict
+from app.visible.MFCC_visible import visualize_features_as_heatmap
 
 app = Flask(__name__)
 
@@ -47,6 +48,8 @@ def predict():
                 return jsonify({'error': 'Failed to extract features'}), 500
 
             print(features)
+            # 调用可视化函数生成 Base64 编码
+            img_base64 = visualize_features_as_heatmap(features)
 
             # 调用 SVM 模型进行预测
             result = svm_predict(features)  # 调用 SVM 模型的预测函数
@@ -61,6 +64,8 @@ def predict():
                 return jsonify({'error': 'Failed to extract features'}), 500
 
             print(features)
+            # 调用可视化函数生成 Base64 编码
+            img_base64 = visualize_features_as_heatmap(features)
 
             # 调用 RNN 模型进行预测
             result = rnn_predict(features)  # 调用 RNN 模型的预测函数
@@ -71,8 +76,11 @@ def predict():
         else:
             return jsonify({'error': 'Invalid model selection'}), 400
 
-        # 返回预测结果
-        return jsonify({'predicted_category': predicted_category})
+        # 返回预测结果和热力图的 Base64 编码
+        return jsonify({
+            'predicted_category': predicted_category,
+            'mfcc_heatmap': img_base64
+        })
 
     except Exception as e:
         print(f"处理音频时发生错误: {e}")
