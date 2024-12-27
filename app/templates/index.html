@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emotion Prediction</title>
+    <title>情感预测</title>
     <!-- Bootstrap CSS -->
     <link
       href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
@@ -35,7 +35,7 @@
             color: #ffc107;
             white-space: pre-wrap; /* 保留换行符 */
         }
-        #mfcc-container {
+        #feature-container {
             margin-top: 30px;
         }
         footer {
@@ -59,18 +59,18 @@
 </head>
 <body>
     <div class="container text-center">
-        <h1>Emotion Prediction</h1>
+        <h1>情感预测</h1>
 
         <div class="card mx-auto" style="max-width: 500px;">
             <div class="card-body">
                 <form id="uploadForm" enctype="multipart/form-data">
                     <!-- 上传文件部分 -->
                     <div class="form-group">
-                        <label for="audioFile"><i class="fas fa-upload"></i> Upload Your Audio File:</label>
+                        <label for="audioFile"><i class="fas fa-upload"></i> 上传您的音频文件:</label>
                         <input type="file" class="form-control-file" id="audioFile" name="audio" accept=".wav, .mp3">
                         <!-- 清除上传文件按钮，初始隐藏 -->
                         <button type="button" class="btn btn-warning btn-sm clear-btn" id="clearUploadBtn" style="display: none;">
-                            <i class="fas fa-trash-alt"></i> Clear Upload
+                            <i class="fas fa-trash-alt"></i> 清除上传
                         </button>
                     </div>
 
@@ -78,10 +78,10 @@
 
                     <!-- 录音部分 -->
                     <div class="form-group">
-                        <label><i class="fas fa-microphone"></i> Record Your Audio:</label>
+                        <label><i class="fas fa-microphone"></i> 录制您的音频:</label>
                         <div>
                             <button type="button" class="btn btn-danger record-btn" id="recordBtn">
-                                <i class="fas fa-circle"></i> Start Recording
+                                <i class="fas fa-circle"></i> 开始录音
                             </button>
                         </div>
                         <div id="recordingStatus" class="mt-2"></div>
@@ -90,33 +90,34 @@
                             <audio id="audioPlayback" controls></audio>
                             <!-- 清除录音按钮 -->
                             <button type="button" class="btn btn-warning btn-sm clear-btn mt-2" id="clearRecordingBtn" style="display: none;">
-                                <i class="fas fa-trash-alt"></i> Clear Recording
+                                <i class="fas fa-trash-alt"></i> 清除录音
                             </button>
                         </div>
                     </div>
 
                     <!-- 模型选择下拉菜单 -->
                     <div class="form-group">
-                        <label for="modelSelection">Select a Model:</label>
+                        <label for="modelSelection">选择一个模型:</label>
                         <select class="form-control" id="modelSelection" name="modelSelection">
                             <option value="svm">SVM</option>
                             <option value="rnn">RNN</option>
+                            <!-- 根据需要添加更多模型 -->
                         </select>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-block" id="predictButton">Analyze Emotion</button>
+                    <button type="submit" class="btn btn-primary btn-block" id="predictButton">分析情感</button>
                 </form>
-                <div id="result">No result yet.</div>
+                <div id="result">尚无结果。</div>
             </div>
         </div>
 
-        <!-- MFCC 特征展示 -->
-        <div id="mfcc-container" class="d-none">
-            <div class="card mt-4">
-                <div class="card-body">
-                    <h3 class="card-title">MFCC Heatmap</h3>
-                    <img id="mfcc-heatmap" src="" alt="MFCC Heatmap" class="img-fluid">
-                </div>
+        <!-- 特征展示 -->
+        <div id="feature-container" class="d-none">
+            <ul class="nav nav-tabs" id="resultTab" role="tablist">
+                <!-- 特征标签页会动态生成 -->
+            </ul>
+            <div class="tab-content" id="resultTabContent">
+                <!-- 特征内容会动态生成 -->
             </div>
         </div>
     </div>
@@ -127,9 +128,9 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <!-- SweetAlert2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Chart.js -->
+    <!-- Chart.js (如果需要绘制图表，可以保留) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- 引入外部 JavaScript 文件 -->
-    <script src="/static/js/script.js"></script>
+    <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

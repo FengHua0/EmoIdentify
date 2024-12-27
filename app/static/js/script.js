@@ -15,6 +15,11 @@ const audioPlayback = document.getElementById('audioPlayback');
 const clearUploadBtn = document.getElementById('clearUploadBtn'); // 清除上传按钮
 const clearRecordingBtn = document.getElementById('clearRecordingBtn'); // 清除录音按钮
 
+// 用于激活 MFCC 热力图和预测结果展示
+const resultTabContent = document.getElementById('resultTabContent');
+const mfccTab = document.getElementById('mfcc-tab');
+const predictionTab = document.getElementById('prediction-tab');
+
 /**
  * 禁用或启用文件上传和录音功能
  * @param {boolean} disableUpload - 是否禁用文件上传
@@ -181,8 +186,11 @@ document.getElementById('uploadForm').addEventListener('submit', function(event)
             document.getElementById('result').textContent += '\n(MFCC heatmap not available)';
         }
 
-        // 清理录音数据
-        // NOTE: 不要在这里调用 clearRecording()
+        // 将预测结果填充到标签内容中
+        document.getElementById('predictedCategory').textContent = predictedCategory;
+
+        // 切换到预测结果标签页
+        $(predictionTab).tab('show'); // 使用 jQuery 激活预测结果标签
     })
     .catch(error => {
         console.error('Error:', error);

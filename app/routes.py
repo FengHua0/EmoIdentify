@@ -1,15 +1,17 @@
-from flask import Flask, request, jsonify, render_template
-import librosa
-import numpy as np
+import base64
 from io import BytesIO
+import matplotlib.pyplot as plt
+import numpy as np
+from flask import Flask, request, jsonify, render_template
 from pydub import AudioSegment
+import librosa
 from app.file_process.data_processing import preprocess_audio
 from app.file_process.feature_extraction_1 import one_features_extract
 from app.file_process.feature_extraction_2 import two_features_extract
 from app.predict.svm_predict import svm_predict
 from app.predict.RNN_predict import rnn_predict
-from app.visible.MFCC_visible import visualize_features_as_heatmap
 import os
+from app.visible.MFCC_visible import mfcc_heatmap
 
 app = Flask(__name__)
 
@@ -72,7 +74,7 @@ def predict():
                 return jsonify({'error': 'Failed to extract features'}), 500
 
             # 调用可视化函数生成 Base64 编码
-            img_base64 = visualize_features_as_heatmap(features)
+            heatmap_data = mfcc_heatmap(features)
 
             # 调用 SVM 模型进行预测
             result = svm_predict(features)  # 调用 SVM 模型的预测函数
@@ -87,7 +89,7 @@ def predict():
                 return jsonify({'error': 'Failed to extract features'}), 500
 
             # 调用可视化函数生成 Base64 编码
-            img_base64 = visualize_features_as_heatmap(features)
+            heatmap_data = mfcc_heatmap(features)
 
             # 调用 RNN 模型进行预测
             result = rnn_predict(features)  # 调用 RNN 模型的预测函数
@@ -101,7 +103,8 @@ def predict():
         # 返回预测结果和热力图的 Base64 编码
         return jsonify({
             'predicted_category': predicted_category,
-            'mfcc_heatmap': img_base64
+            'feature_name': heatmap_data['feature_name'],
+            'base64': heatmap_data['base64']
         })
 
     except Exception as e:
