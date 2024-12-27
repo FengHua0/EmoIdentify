@@ -4,169 +4,131 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emotion Prediction</title>
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    >
+    <!-- Font Awesome -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+      rel="stylesheet"
+    >
+    <!-- Animate.css (可选) -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+    />
     <style>
-        /* 页面整体样式 */
         body {
-            text-align: center;
+            background-color: #f8f9fa;
         }
-
-        /* 顶部标题 */
         h1 {
             margin: 50px 0 30px;
             font-size: 3rem;
-            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
-            color: #0a0a0a;
+            color: #343a40;
         }
-
-        /* 表单外层容器 */
-        .form-container {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 30px;
-            margin: auto;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 450px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
-            text-align: center;
-        }
-
-        /* 表单标题 */
-        .form-container label {
-            font-size: 1.2rem;
-            color: #FFD700;
-            margin-bottom: 10px;
-            display: block;
-        }
-
-        /* 文件选择框样式 */
-        .form-container input[type="file"] {
-            margin: 15px 0;
-            padding: 12px;
-            font-size: 1rem;
-            color: #333;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            width: 100%;
-            box-sizing: border-box;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        .form-container input[type="file"]:hover {
-            border-color: #4CAF50;
-        }
-
-        /* 训练模型选择框样式 */
-        .form-container select {
-            margin: 15px 0;
-            padding: 12px;
-            font-size: 1rem;
-            color: #333;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            width: 100%;
-            box-sizing: border-box;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        .form-container select:hover {
-            border-color: #4CAF50;
-        }
-
-        /* 按钮样式 */
-        .form-container button {
-            background: linear-gradient(135deg, #4CAF50, #2E7D32);
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            font-size: 1rem;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 15px;
-        }
-
-        .form-container button:hover {
-            background: linear-gradient(135deg, #66BB6A, #388E3C);
-        }
-
-        /* 结果展示区域 */
         #result {
             margin-top: 20px;
             font-size: 1.4rem;
             font-weight: bold;
-            color: #FFD700;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            color: #ffc107;
+            white-space: pre-wrap; /* 保留换行符 */
         }
-
-        /* MFCC特征展示区域 */
         #mfcc-container {
             margin-top: 30px;
-            text-align: center;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
-
-        #mfcc-container h2 {
-            margin-bottom: 15px;
-            font-size: 1.6rem;
-            color: #333;
-        }
-
-        #mfcc-heatmap {
-            max-width: 100%;
-            height: auto;
-        }
-
-        /* Footer 样式 */
         footer {
             margin-top: 50px;
             font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.7);
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            color: rgba(0, 0, 0, 0.7);
         }
-
-        footer a {
-            color: #FFD700;
-            text-decoration: none;
+        /* 录音按钮样式 */
+        .record-btn {
+            margin-top: 15px;
+            width: 100%;
         }
-
-        footer a:hover {
-            text-decoration: underline;
+        .clear-btn {
+            margin-top: 10px;
+        }
+        .recording {
+            color: red;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <h1>Emotion Prediction</h1>
+    <div class="container text-center">
+        <h1>Emotion Prediction</h1>
 
-    <div class="form-container">
-        <form id="uploadForm" enctype="multipart/form-data">
-            <label for="audioFile">Upload Your Audio File:</label>
-            <input type="file" id="audioFile" name="audio" accept=".wav, .mp3" required>
+        <div class="card mx-auto" style="max-width: 500px;">
+            <div class="card-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <!-- 上传文件部分 -->
+                    <div class="form-group">
+                        <label for="audioFile"><i class="fas fa-upload"></i> Upload Your Audio File:</label>
+                        <input type="file" class="form-control-file" id="audioFile" name="audio" accept=".wav, .mp3">
+                        <!-- 清除上传文件按钮，初始隐藏 -->
+                        <button type="button" class="btn btn-warning btn-sm clear-btn" id="clearUploadBtn" style="display: none;">
+                            <i class="fas fa-trash-alt"></i> Clear Upload
+                        </button>
+                    </div>
 
-            <!-- 模型选择下拉菜单 -->
-            <label for="modelSelection">Select a Model:</label>
-            <select id="modelSelection" name="modelSelection">
-                <option value="svm">SVM</option>
-                <option value="rnn">RNN</option>
-            </select>
+                    <p>或</p>
 
-            <button type="submit" id="predictButton">Analyze Emotion</button>
-        </form>
-        <div id="result">No result yet.</div>
+                    <!-- 录音部分 -->
+                    <div class="form-group">
+                        <label><i class="fas fa-microphone"></i> Record Your Audio:</label>
+                        <div>
+                            <button type="button" class="btn btn-danger record-btn" id="recordBtn">
+                                <i class="fas fa-circle"></i> Start Recording
+                            </button>
+                        </div>
+                        <div id="recordingStatus" class="mt-2"></div>
+                        <!-- 播放录音（可选），初始隐藏 -->
+                        <div id="playback" class="mt-3" style="display: none;">
+                            <audio id="audioPlayback" controls></audio>
+                            <!-- 清除录音按钮 -->
+                            <button type="button" class="btn btn-warning btn-sm clear-btn mt-2" id="clearRecordingBtn" style="display: none;">
+                                <i class="fas fa-trash-alt"></i> Clear Recording
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 模型选择下拉菜单 -->
+                    <div class="form-group">
+                        <label for="modelSelection">Select a Model:</label>
+                        <select class="form-control" id="modelSelection" name="modelSelection">
+                            <option value="svm">SVM</option>
+                            <option value="rnn">RNN</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" id="predictButton">Analyze Emotion</button>
+                </form>
+                <div id="result">No result yet.</div>
+            </div>
+        </div>
+
+        <!-- MFCC 特征展示 -->
+        <div id="mfcc-container" class="d-none">
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h3 class="card-title">MFCC Heatmap</h3>
+                    <img id="mfcc-heatmap" src="" alt="MFCC Heatmap" class="img-fluid">
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- MFCC 特征展示 -->
-    <div id="mfcc-container" style="display: none;">
-        <h3>MFCC Heatmap</h3>
-        <img id="mfcc-heatmap" src="" alt="MFCC Heatmap" style="max-width: 100%; height: auto;">
-    </div>
-
+    <!-- jQuery, Popper.js, and Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- 引入外部 JavaScript 文件 -->
     <script src="/static/js/script.js"></script>
 </body>
