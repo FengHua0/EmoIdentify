@@ -6,8 +6,7 @@ import librosa
 from app.file_process.data_processing import preprocess_audio
 from app.file_process.feature_extraction_1 import one_features_extract
 from app.file_process.feature_extraction_2 import two_features_extract
-from app.predict.svm_predict import svm_predict
-from app.predict.RNN_predict import rnn_predict
+from app.predict.model_factory import model_factory
 from app.visible.MFCC_visible import mfcc_heatmap
 from app.visible.spectrogram import spectrogram_base64
 from app.visible.waveform import waveform_base64
@@ -42,7 +41,7 @@ def predict():
         audio_bytes = audio_file.read()
         file_extension = audio_file.filename.rsplit('.', 1)[1].lower()
 
-        # 处理音频文件，转换为 wav 格式（如果需要）
+        # 处理音频文件，转换为 wav 格式
         if file_extension == 'webm':
             # webm 转换为 wav 格式
             audio_segment = AudioSegment.from_file(BytesIO(audio_bytes), format='webm')
@@ -64,20 +63,18 @@ def predict():
         if processed_audio is None:
             return jsonify({'error': 'Failed to preprocess audio'}), 500
 
-        # 提取音频特征
-        if model_type == 'svm':
-            features = one_features_extract(processed_audio, sr=sr)
-            if not features:
-                return jsonify({'error': 'Failed to extract features'}), 500
-            result = svm_predict(features)
-        elif model_type == 'rnn':
-            features = two_features_extract(processed_audio, sr=sr)
-            if not features:
-                return jsonify({'error': 'Failed to extract features'}), 500
-            result = rnn_predict(features)
-        else:
-            return jsonify({'error': 'Invalid model selection'}), 400
+        # 使用工厂模式获取模型实例
+        try:
+            model = model_factory(model_type, processed_audio, sr)
+        except ValueError as ve:
+            return jsonify({'error': str(ve)}), 400
 
+        if model is None:
+            return jsonify({'error': 'Failed to create model instance'}), 500
+
+        # 执行预测
+        mfcc_feature = model.extract_features()
+        result = model.predict()
         if result is None:
             return jsonify({'error': 'Prediction failed'}), 500
 
@@ -85,7 +82,7 @@ def predict():
         predicted_category = result['predicted_category']
 
         # MFCC特征可视化
-        mfcc_feature = mfcc_heatmap(features)
+        mfcc_feature = mfcc_heatmap(mfcc_feature)
 
         features = []
 
