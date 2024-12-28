@@ -127,14 +127,13 @@ export function initializeUploader() {
         }
 
         const predictedCategory = data.predicted_category;
-        const featureName = data.feature_name;
-        const base64 = data.base64;
+        const features = data.features;  // 现在返回的是包含多个特征的数组
 
-        // 显示预测结果
+        // 显示预测结果（直接在特征展示区域中展示结果，不使用标签页）
         document.getElementById('result').textContent = `预测结果: ${predictedCategory}`;
 
         // 显示特征展示区域
-        if (base64) {
+        if (features && features.length > 0) {
             const featureContainer = document.getElementById('feature-container');
             const resultTab = document.getElementById('resultTab');
             const resultTabContent = document.getElementById('resultTabContent');
@@ -143,106 +142,61 @@ export function initializeUploader() {
             resultTab.innerHTML = '';
             resultTabContent.innerHTML = '';
 
-            // 创建标签页
-            const featureTabId = `feature-${featureName.replace(/\s+/g, '-').toLowerCase()}`;
-            const predictionTabId = 'prediction-tab';
+            // 遍历特征并显示
+            features.forEach(feature => {
+                const featureTabId = `feature-${feature.feature_name.replace(/\s+/g, '-').toLowerCase()}`;
 
-            // 特征标签
-            const featureTab = document.createElement('li');
-            featureTab.classList.add('nav-item');
+                // 特征标签
+                const featureTab = document.createElement('li');
+                featureTab.classList.add('nav-item');
 
-            const featureTabLink = document.createElement('a');
-            featureTabLink.classList.add('nav-link', 'active');
-            featureTabLink.id = `${featureTabId}-tab`;
-            featureTabLink.setAttribute('data-toggle', 'tab');
-            featureTabLink.href = `#${featureTabId}`;
-            featureTabLink.setAttribute('role', 'tab');
-            featureTabLink.setAttribute('aria-controls', featureTabId);
-            featureTabLink.setAttribute('aria-selected', 'true');
-            featureTabLink.textContent = featureName;
+                const featureTabLink = document.createElement('a');
+                featureTabLink.classList.add('nav-link');
+                featureTabLink.id = `${featureTabId}-tab`;
+                featureTabLink.setAttribute('data-toggle', 'tab');
+                featureTabLink.href = `#${featureTabId}`;
+                featureTabLink.setAttribute('role', 'tab');
+                featureTabLink.setAttribute('aria-controls', featureTabId);
+                featureTabLink.setAttribute('aria-selected', 'false');
+                featureTabLink.textContent = feature.feature_name;
 
-            featureTab.appendChild(featureTabLink);
-            resultTab.appendChild(featureTab);
+                featureTab.appendChild(featureTabLink);
+                resultTab.appendChild(featureTab);
 
-            // 预测结果标签
-            const predictionTab = document.createElement('li');
-            predictionTab.classList.add('nav-item');
+                // 特征内容
+                const featureContent = document.createElement('div');
+                featureContent.classList.add('tab-pane', 'fade');
+                featureContent.id = featureTabId;
+                featureContent.setAttribute('role', 'tabpanel');
+                featureContent.setAttribute('aria-labelledby', `${featureTabId}-tab`);
 
-            const predictionTabLink = document.createElement('a');
-            predictionTabLink.classList.add('nav-link');
-            predictionTabLink.id = `${predictionTabId}-tab`;
-            predictionTabLink.setAttribute('data-toggle', 'tab');
-            predictionTabLink.href = `#prediction`;
-            predictionTabLink.setAttribute('role', 'tab');
-            predictionTabLink.setAttribute('aria-controls', 'prediction');
-            predictionTabLink.setAttribute('aria-selected', 'false');
-            predictionTabLink.textContent = 'Prediction Result';
+                const featureCard = document.createElement('div');
+                featureCard.classList.add('card', 'mt-4');
 
-            predictionTab.appendChild(predictionTabLink);
-            resultTab.appendChild(predictionTab);
+                const featureCardBody = document.createElement('div');
+                featureCardBody.classList.add('card-body');
 
-            // 创建特征内容
-            const featureContent = document.createElement('div');
-            featureContent.classList.add('tab-pane', 'fade', 'show', 'active');
-            featureContent.id = featureTabId;
-            featureContent.setAttribute('role', 'tabpanel');
-            featureContent.setAttribute('aria-labelledby', `${featureTabId}-tab`);
+                const featureImg = document.createElement('img');
+                featureImg.src = `data:image/png;base64,${feature.base64}`;
+                featureImg.alt = `${feature.feature_name} Heatmap`;
+                featureImg.classList.add('img-fluid');
 
-            const featureCard = document.createElement('div');
-            featureCard.classList.add('card', 'mt-4');
-
-            const featureCardBody = document.createElement('div');
-            featureCardBody.classList.add('card-body');
-
-            const featureImg = document.createElement('img');
-            featureImg.id = `heatmap-${featureTabId}`;
-            featureImg.src = `data:image/png;base64,${base64}`;
-            featureImg.alt = `${featureName} Heatmap`;
-            featureImg.classList.add('img-fluid');
-
-            featureCardBody.appendChild(featureImg);
-            featureCard.appendChild(featureCardBody);
-            featureContent.appendChild(featureCard);
-            resultTabContent.appendChild(featureContent);
-
-            // 创建预测结果内容
-            const predictionContent = document.createElement('div');
-            predictionContent.classList.add('tab-pane', 'fade');
-            predictionContent.id = 'prediction';
-            predictionContent.setAttribute('role', 'tabpanel');
-            predictionContent.setAttribute('aria-labelledby', 'prediction-tab');
-
-            const predictionCard = document.createElement('div');
-            predictionCard.classList.add('card', 'mt-4');
-
-            const predictionCardBody = document.createElement('div');
-            predictionCardBody.classList.add('card-body');
-
-            const predictionTitle = document.createElement('h3');
-            predictionTitle.classList.add('card-title');
-            predictionTitle.textContent = '预测结果';
-
-            const predictionText = document.createElement('p');
-            predictionText.id = 'predictedCategory';
-            predictionText.textContent = predictedCategory;
-
-            predictionCardBody.appendChild(predictionTitle);
-            predictionCardBody.appendChild(predictionText);
-            predictionCard.appendChild(predictionCardBody);
-            predictionContent.appendChild(predictionCard);
-            resultTabContent.appendChild(predictionContent);
+                featureCardBody.appendChild(featureImg);
+                featureCard.appendChild(featureCardBody);
+                featureContent.appendChild(featureCard);
+                resultTabContent.appendChild(featureContent);
+            });
 
             // 显示特征展示区域
             featureContainer.classList.remove('d-none');
 
-            // 切换到预测结果标签页
-            $('#prediction-tab').tab('show'); // 使用 jQuery 激活预测结果标签
+            // 激活第一个特征标签，显示第一个特征的图
+            if (features.length > 0) {
+                $('#resultTab li:first-child a').tab('show');
+            }
         } else {
             console.warn('未收到特征热力图数据。');
             document.getElementById('result').textContent += '\n(特征热力图不可用)';
         }
-
-        // 将预测结果填充到标签内容中
-        document.getElementById('predictedCategory').textContent = predictedCategory;
     }
 }
