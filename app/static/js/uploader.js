@@ -126,27 +126,26 @@ export function initializeUploader() {
             return;
         }
 
-        const predictedCategory = data.predicted_category;
-        const features = data.features;  // 现在返回的是包含多个特征的数组
+        const predictedCategory = data.predicted_category; // 获取返回的预测结果
+        const features = data.features;  // 获取返回的特征数据
 
-        // 显示预测结果（直接在特征展示区域中展示结果，不使用标签页）
+        // 更新预测结果到页面
         document.getElementById('result').textContent = `预测结果: ${predictedCategory}`;
 
-        // 显示特征展示区域
+        // 如果有特征，进行展示
         if (features && features.length > 0) {
             const featureContainer = document.getElementById('feature-container');
             const resultTab = document.getElementById('resultTab');
             const resultTabContent = document.getElementById('resultTabContent');
 
-            // 清空之前的内容
+            // 清空之前内容
             resultTab.innerHTML = '';
             resultTabContent.innerHTML = '';
 
-            // 遍历特征并显示
+            // 遍历特征并添加到页面
             features.forEach(feature => {
                 const featureTabId = `feature-${feature.feature_name.replace(/\s+/g, '-').toLowerCase()}`;
 
-                // 特征标签
                 const featureTab = document.createElement('li');
                 featureTab.classList.add('nav-item');
 
@@ -156,19 +155,15 @@ export function initializeUploader() {
                 featureTabLink.setAttribute('data-toggle', 'tab');
                 featureTabLink.href = `#${featureTabId}`;
                 featureTabLink.setAttribute('role', 'tab');
-                featureTabLink.setAttribute('aria-controls', featureTabId);
-                featureTabLink.setAttribute('aria-selected', 'false');
                 featureTabLink.textContent = feature.feature_name;
 
                 featureTab.appendChild(featureTabLink);
                 resultTab.appendChild(featureTab);
 
-                // 特征内容
                 const featureContent = document.createElement('div');
                 featureContent.classList.add('tab-pane', 'fade');
                 featureContent.id = featureTabId;
                 featureContent.setAttribute('role', 'tabpanel');
-                featureContent.setAttribute('aria-labelledby', `${featureTabId}-tab`);
 
                 const featureCard = document.createElement('div');
                 featureCard.classList.add('card', 'mt-4');
@@ -178,7 +173,6 @@ export function initializeUploader() {
 
                 const featureImg = document.createElement('img');
                 featureImg.src = `data:image/png;base64,${feature.base64}`;
-                featureImg.alt = `${feature.feature_name} Heatmap`;
                 featureImg.classList.add('img-fluid');
 
                 featureCardBody.appendChild(featureImg);
@@ -189,14 +183,10 @@ export function initializeUploader() {
 
             // 显示特征展示区域
             featureContainer.classList.remove('d-none');
-
-            // 激活第一个特征标签，显示第一个特征的图
-            if (features.length > 0) {
-                $('#resultTab li:first-child a').tab('show');
-            }
         } else {
             console.warn('未收到特征热力图数据。');
             document.getElementById('result').textContent += '\n(特征热力图不可用)';
         }
     }
+
 }

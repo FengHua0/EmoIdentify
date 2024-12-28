@@ -48,25 +48,26 @@ def predict():
         # 更新状态：读取音频文件
         audio_bytes = audio_file.read()  # 将音频文件读入内存
 
-        # 特征图
-        spectrogram = spectrogram_base64(audio_bytes)
-        waveform = waveform_base64(audio_bytes)
-
         # 检查文件格式并处理
         file_extension = audio_file.filename.rsplit('.', 1)[1].lower()
 
+        # 处理音频文件，先检查文件格式并转换为 wav 格式（如果需要）
         if file_extension == 'webm':
             # 如果是 webm 格式，使用 pydub 转换为 wav 格式
-            audio = AudioSegment.from_file(BytesIO(audio_bytes), format='webm')
+            audio_segment = AudioSegment.from_file(BytesIO(audio_bytes), format='webm')  # 创建 AudioSegment 对象
             wav_io = BytesIO()
-            audio.export(wav_io, format='wav')
-            wav_bytes = wav_io.getvalue()
-            y, sr = librosa.load(BytesIO(wav_bytes), sr=16000, mono=True)
+            audio_segment.export(wav_io, format='wav')  # 将音频导出为 wav 格式
+            wav_bytes = wav_io.getvalue()  # 获取转换后的 wav 数据
+            y, sr = librosa.load(BytesIO(wav_bytes), sr=16000, mono=True)  # 使用 librosa 加载 wav 数据
         elif file_extension in ['wav', 'mp3']:
             # 如果是 wav 或 mp3 格式，直接加载
             y, sr = librosa.load(BytesIO(audio_bytes), sr=16000, mono=True)
+            wav_bytes = audio_bytes  # 对于 wav 或 mp3 格式，不需要转换，直接使用原始字节数据
         else:
             return jsonify({'error': 'Invalid audio file format. Please upload wav, mp3, or webm files.'}), 400
+
+        spectrogram = spectrogram_base64(wav_bytes)
+        waveform = waveform_base64(wav_bytes)
 
         # 更新状态：音频预处理
         processed_audio = preprocess_audio(y, sr=sr)  # 预处理音频数据
@@ -103,12 +104,9 @@ def predict():
             return jsonify({'error': 'Invalid model selection'}), 400
 
         # 调用可视化函数生成 Base64 编码
-        heatmap_data = mfcc_heatmap(features)
+        mfcc_feature = mfcc_heatmap(features)
 
-        features_list.append({
-            'feature_name': 'MFCC Features',
-            'base64': heatmap_data['base64']
-        })
+        features_list.append(mfcc_feature)
         features_list.append(spectrogram)
         features_list.append(waveform)
 
