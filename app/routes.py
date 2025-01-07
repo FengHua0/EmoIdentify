@@ -7,7 +7,7 @@ from app.file_process.data_processing import preprocess_audio
 from app.file_process.feature_extraction_1 import one_features_extract
 from app.file_process.feature_extraction_2 import two_features_extract
 from app.predict.model_factory import model_factory
-from app.visible.MFCC_visible import mfcc_heatmap
+# from app.visible.MFCC_visible import mfcc_heatmap
 from app.visible.spectrogram import spectrogram_base64
 from app.visible.waveform import waveform_base64
 
@@ -56,7 +56,7 @@ def predict():
             return jsonify({'error': 'Invalid audio file format. Please upload wav, mp3, or webm files.'}), 400
 
         # 特征提取和可视化
-        spectrogram = spectrogram_base64(wav_bytes)
+        spectrogram, _ = spectrogram_base64(wav_bytes)
         waveform = waveform_base64(wav_bytes)
 
         processed_audio = preprocess_audio(y, sr=sr)
@@ -73,7 +73,7 @@ def predict():
             return jsonify({'error': 'Failed to create model instance'}), 500
 
         # 执行预测
-        mfcc_feature = model.extract_features()
+        # mfcc_feature = model.extract_features()
         result = model.predict()
         if result is None:
             return jsonify({'error': 'Prediction failed'}), 500
@@ -82,12 +82,12 @@ def predict():
         predicted_category = result['predicted_category']
 
         # MFCC特征可视化
-        mfcc_feature = mfcc_heatmap(mfcc_feature)
+        # mfcc_feature = mfcc_heatmap(mfcc_feature)
 
         features = []
 
         # 使用append方法逐个添加特征
-        features.append(mfcc_feature)
+        # features.append(mfcc_feature)
         features.append(spectrogram)
         features.append(waveform)
 

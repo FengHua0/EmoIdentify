@@ -17,25 +17,40 @@ def pre_emphasis(y, coeff=0.97):
     return np.append(y[0], y[1:] - coeff * y[:-1])
 
 # 2. 降噪
-def noise_reduction(y, sr):
+def noise_reduction(y, sr, frame_length_ms=20, hop_length_ms=10, noise_duration=0.5, noise_factor=0.02):
     """
-    使用音频的前0.5秒作为噪声样本，进行降噪处理。
-    input:
-    y ： 输入的音频信号（数组）
-    sr ： 音频采样率
-    Returns:
-    降噪后的音频信号（数组）
+    基于频谱减法的音频降噪方法。
+
+    :param y: 输入音频信号 (NumPy 数组)
+    :param sr: 采样率 (Hz)
+    :param frame_length_ms: 每帧时长（毫秒），默认20ms
+    :param hop_length_ms: 帧移（毫秒），默认10ms
+    :param noise_duration: 用于估计噪声的时间段（秒），默认0.5秒
+    :param noise_factor: 噪声谱减法比例，默认0.02
+    :return: 降噪后的音频信号 (NumPy 数组)
     """
-    noise_sample = y[:int(0.5 * sr)]  # 取前0.5秒作为噪声样本
-    if len(noise_sample) == 0 or np.max(np.abs(noise_sample)) < 1e-6:
-        print("噪声样本无效，跳过降噪")
-        return y  # 如果噪声样本无效，返回原始信号
-    try:
-        y_denoised = nr.reduce_noise(y=y, sr=sr, y_noise=noise_sample)
-        return y_denoised
-    except Exception as e:
-        print(f"降噪失败，返回原始信号: {e}")
-        return y
+    # 1. 动态计算帧长和帧移
+    n_fft = int(sr * (frame_length_ms / 1000))  # 将帧长从毫秒转为采样点数
+    hop_length = int(sr * (hop_length_ms / 1000))  # 将帧移从毫秒转为采样点数
+
+    # 2. 计算短时傅里叶变换 (STFT)
+    stft = librosa.stft(y, n_fft=n_fft, hop_length=hop_length)
+    magnitude, phase = np.abs(stft), np.angle(stft)  # 分解为幅值谱和相位谱
+
+    # 3. 估计噪声谱
+    noise_frames = int((noise_duration * sr) / hop_length)  # 噪声持续时间对应的帧数
+    noise_estimation = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)  # 取噪声段的平均幅值谱
+
+    # 4. 频谱减法（减去噪声谱，确保非负）
+    magnitude_denoised = np.maximum(magnitude - noise_factor * noise_estimation, 0)
+
+    # 5. 重建 STFT 幅值与相位
+    stft_denoised = magnitude_denoised * np.exp(1j * phase)
+
+    # 6. 逆短时傅里叶变换 (ISTFT)
+    y_denoised = librosa.istft(stft_denoised, hop_length=hop_length)
+
+    return y_denoised
 
 # 3. 音频预处理（降噪 + 预加重）
 def preprocess_audio(input_data, sr=16000, pre_emph_coeff=0.97):
@@ -62,10 +77,11 @@ def preprocess_audio(input_data, sr=16000, pre_emph_coeff=0.97):
             print(f"输入音频数据为空，跳过处理...")
             return None
 
-        # 降噪处理
-        y_denoised = noise_reduction(y, sr)
         # 预加重处理
-        y_preemphasized = pre_emphasis(y_denoised, coeff=pre_emph_coeff)
+        y_denoised = pre_emphasis(y, coeff=pre_emph_coeff)
+        # 降噪处理
+        y_preemphasized = noise_reduction(y_denoised, sr)
+
 
         return y_preemphasized  # 返回处理后的音频数据
 
