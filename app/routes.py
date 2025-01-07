@@ -4,12 +4,14 @@ from flask import Flask, request, jsonify, render_template
 from pydub import AudioSegment
 import librosa
 from app.file_process.data_processing import preprocess_audio
-from app.file_process.feature_extraction_1 import one_features_extract
-from app.file_process.feature_extraction_2 import two_features_extract
 from app.predict.model_factory import model_factory
 # from app.visible.MFCC_visible import mfcc_heatmap
 from app.visible.spectrogram import spectrogram_base64
 from app.visible.waveform import waveform_base64
+
+from app.predict.svm_predict import SVM
+from app.predict.RNN_predict import RNN
+from app.predict.CNN_predict import CNN
 
 app = Flask(__name__)
 
@@ -62,7 +64,6 @@ def predict():
         processed_audio = preprocess_audio(y, sr=sr)
         if processed_audio is None:
             return jsonify({'error': 'Failed to preprocess audio'}), 500
-
         # 使用工厂模式获取模型实例
         try:
             model = model_factory(model_type, processed_audio, sr)
@@ -80,7 +81,6 @@ def predict():
 
         # 获取预测类别
         predicted_category = result['predicted_category']
-
         # MFCC特征可视化
         # mfcc_feature = mfcc_heatmap(mfcc_feature)
 

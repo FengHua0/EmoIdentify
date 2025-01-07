@@ -5,8 +5,10 @@ import warnings
 
 from app.file_process.feature_extraction_1 import one_features_extract
 from app.predict.Base_model import BaseModel
+from app.predict.model_factory import register_model
 
 
+@register_model('svm')
 class SVM(BaseModel):
     def __init__(self, processed_audio, sr):
         super().__init__(processed_audio, sr)

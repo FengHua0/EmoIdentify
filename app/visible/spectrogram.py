@@ -5,7 +5,7 @@ import numpy as np
 import io
 import base64
 
-def spectrogram_base64(audio_input, sr=16000):
+def spectrogram_base64(input_data, sr=16000):
     """
     将音频数据转换为频谱图并返回其 Base64 编码。
 
@@ -13,14 +13,17 @@ def spectrogram_base64(audio_input, sr=16000):
     :param sr: 采样率，默认 16000
     :return: 包含 'feature_name' 和 'base64' 的字典
     """
-    if isinstance(audio_input, str):
-        # 如果是文件路径，直接加载
-        y, sr = librosa.load(audio_input, sr=sr, mono=True)
-    elif isinstance(audio_input, (bytes, bytearray)):
-        # 如果是字节流，将其转换为内存文件并加载
-        y, sr = librosa.load(io.BytesIO(audio_input), sr=sr, mono=True)
+    # 判断输入类型
+    if isinstance(input_data, str):
+        y, _ = librosa.load(input_data, sr=sr)
+    elif isinstance(input_data, np.ndarray):
+        y = input_data
+    elif isinstance(input_data, bytes):  # 如果是字节串类型
+        y, sr = librosa.load(io.BytesIO(input_data), sr=sr, mono=True)  # 使用 BytesIO 读取字节数据
+
     else:
-        raise ValueError("audio_input 必须是文件路径 (str) 或字节流 (bytes)。")
+        raise ValueError("输入数据必须是文件路径 (str) 或音频数据 (NumPy 数组)。")
+
 
     # 计算短时傅里叶变换（STFT）
     D = librosa.stft(y)

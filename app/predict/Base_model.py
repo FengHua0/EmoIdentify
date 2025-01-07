@@ -1,5 +1,3 @@
-# models/base_model.py
-
 class BaseModel:
     def __init__(self, processed_audio, sr):
         self.processed_audio = processed_audio

@@ -8,6 +8,7 @@
 **/*.csv
 **/*.png
 **/*.PNG
+**/*.h5
 
 # Python编译文件
 __pycache__/

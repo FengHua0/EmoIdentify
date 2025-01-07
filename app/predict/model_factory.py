@@ -1,20 +1,20 @@
-# factory.py
+model_registry = {}
 
-from app.predict.svm_predict import SVM
-from app.predict.RNN_predict import RNN
+def register_model(model_type):
+    def wrapper(cls):
+        model_registry[model_type.lower()] = cls
+        return cls
+    return wrapper
+
 
 def model_factory(model_type, processed_audio, sr):
-    """
-    根据model_type返回对应的模型实例
-    """
-    models = {
-        'svm': SVM,
-        'rnn': RNN,
-        # 'cnn': CNNModel,  # 根据需要添加更多模型
-    }
 
-    model_class = models.get(model_type.lower())
+    print(f"Creating model for: {model_type}")
+
+    model_class = model_registry.get(model_type.lower())
+
+    print(f"Model class found: {model_class}")
+
     if not model_class:
-        raise ValueError('无效的模型选择。')
-
+        raise ValueError(f"无效的模型选择：{model_type}")
     return model_class(processed_audio, sr)
