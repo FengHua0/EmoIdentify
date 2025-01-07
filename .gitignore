@@ -7,6 +7,7 @@
 **/*.tag
 **/*.csv
 **/*.png
+**/*.PNG
 
 # Python编译文件
 __pycache__/
