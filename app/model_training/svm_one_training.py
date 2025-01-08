@@ -50,7 +50,7 @@ def train_svm(train_file, val_file, test_file, model_output):
 
     # 训练SVM模型
     print("开始训练SVM模型...")
-    svm_model = SVC(kernel='linear', random_state=42)
+    svm_model = SVC(kernel='linear', random_state=42, probability=True)
     svm_model.fit(X_train_scaled, y_train_encoded)
 
     # 保存模型和标签编码器
@@ -69,9 +69,9 @@ def train_svm(train_file, val_file, test_file, model_output):
 
 # 主程序
 if __name__ == "__main__":
-    train_file = "../features/One_dimensional/train_features.csv"  # 训练集特征文件路径
-    val_file = "../features/One_dimensional/val_features.csv"  # 验证集特征文件路径
-    test_file = "../features/One_dimensional/test_features.csv"  # 测试集特征文件路径
+    train_file = "../features/feature_extraction_1/CREMA-D/train.csv"  # 训练集特征文件路径
+    val_file = "../features/feature_extraction_1/CREMA-D/val.csv"  # 验证集特征文件路径
+    test_file = "../features/feature_extraction_1/CREMA-D/test.csv"  # 测试集特征文件路径
     model_output = "../models/svm_model.joblib"  # 模型保存路径
 
     # 创建保存模型的文件夹

@@ -11,7 +11,8 @@ from app.model_training.cnn_spectrogram import build_cnn_model
 from app.predict.Base_model import BaseModel
 import base64
 import io
-
+import matplotlib.pyplot as plt
+from io import BytesIO
 
 @register_model('cnn')
 class CNN(BaseModel):
@@ -95,11 +96,42 @@ class CNN(BaseModel):
             print(f"频谱图提取或预处理时出错: {e}")
             return None
 
+    def plot_confidence(self, predictions):
+        """
+        绘制类别置信度的柱状图，并返回其 Base64 编码。
+        :param predictions: 模型预测的置信度
+        :return: str, 图像的 Base64 编码
+        """
+        try:
+            # 获取类别标签
+            categories = list(self.label_mapping.values())
+            confidences = predictions[0]
+
+            # 绘制柱状图
+            plt.figure(figsize=(10, 6))
+            plt.bar(categories, confidences, color='skyblue')
+            plt.ylabel('Confidence')
+            plt.title('Prediction Confidence for Each Emotion')
+
+            # 保存图像到字节流
+            img_stream = BytesIO()
+            plt.savefig(img_stream, format='png')
+            plt.close()
+            img_stream.seek(0)
+
+            # 转换为 Base64 编码
+            img_base64 = base64.b64encode(img_stream.read()).decode('utf-8')
+            return img_base64
+
+        except Exception as e:
+            print(f"绘制置信度图时出错: {e}")
+            return None
+
     def predict(self):
         """
         使用训练好的 CNN 模型对频谱图进行分类预测。
         Returns:
-            dict: 包含预测类别名称的结果
+            dict: 包含预测类别名称和置信度图像的 Base64 编码的结果
         """
         if self.model is None:
             return {'error': '模型未正确加载。'}
@@ -119,9 +151,18 @@ class CNN(BaseModel):
             # 解码类别索引为标签
             predicted_emotion = self.label_mapping[str(predicted_index)]
 
-            # 返回预测结果
+            # 绘制置信度图并返回图像的 Base64 编码
+            confidence_base64 = self.plot_confidence(predictions)
+
+            confidence = {
+                'feature_name': 'Confidence',  # 数据的名称
+                'base64': confidence_base64  # 图像的 Base64 编码
+            }
+
+            # 返回预测结果和置信度图
             result = {
-                'predicted_category': predicted_emotion  # 返回预测情感类别名称
+                'predicted_category': predicted_emotion,  # 返回预测情感类别名称
+                'confidence': confidence  # 返回置信度图
             }
             return result
 

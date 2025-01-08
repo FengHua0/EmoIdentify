@@ -83,11 +83,13 @@ def predict():
         predicted_category = result['predicted_category']
         # MFCC特征可视化
         # mfcc_feature = mfcc_heatmap(mfcc_feature)
+        confidence = result['confidence']
 
         features = []
 
         # 使用append方法逐个添加特征
         # features.append(mfcc_feature)
+        features.append(confidence)
         features.append(spectrogram)
         features.append(waveform)
 
