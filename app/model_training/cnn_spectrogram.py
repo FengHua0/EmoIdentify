@@ -9,7 +9,7 @@ import json
 # 主函数定义
 def train_cnn_model(data_folder, model_output, epochs=20, batch_size=32, img_size=(224, 224), resume_training=False):
     """
-    基于 CNN 的频谱图六分类训练函数。
+    基于 CNN 的频谱图六分类训练函数。每5轮保存一次模型。
 
     :param data_folder: 包含 train、val、test 文件夹的根目录
     :param model_output: 模型保存路径
@@ -81,16 +81,22 @@ def train_cnn_model(data_folder, model_output, epochs=20, batch_size=32, img_siz
         metrics=['accuracy']
     )
 
+    # 创建模型检查点回调函数，每5轮保存一次模型
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+        model_output,
+        save_weights_only=False,
+        save_best_only=False,
+        save_freq=5 * train_generator.samples // batch_size,  # 每5个epoch保存一次模型
+        verbose=1
+    )
+
     # 模型训练
     history = model.fit(
         train_generator,
         epochs=epochs,
-        validation_data=val_generator
+        validation_data=val_generator,
+        callbacks=[checkpoint_callback]  # 加入回调
     )
-
-    # 保存模型
-    model.save(model_output)
-    print(f"模型已保存到 {model_output}")
 
     # 模型验证（测试集评估）
     test_loss, test_accuracy = model.evaluate(test_generator)
@@ -167,7 +173,6 @@ def plot_training_curves(history):
 if __name__ == "__main__":
     # 用户提供的路径
     data_folder = "../features/spectrogram/CREMA-D"  # 包含 train、val、test 的文件夹路径
-    model_output = "../models/cnn_spectrogram_model.h5"  # 模型保存路径
+    model_output = "../models/cnn_mel_spectrogram_model.h5"  # 模型保存路径
 
-    # 设置 resume_training 为 True 来继续训练
     train_cnn_model(data_folder, model_output, epochs=10, batch_size=32, img_size=(224, 224), resume_training=True)

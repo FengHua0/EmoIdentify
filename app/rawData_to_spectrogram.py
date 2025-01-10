@@ -5,7 +5,7 @@ from app.file_process.create_spectrogram import create_spectrogram
 input_data = '../RawDataSet/CREMA-D'
 processed_data = '../ProcessedDataSet/Processed'
 split_data = '../ProcessedDataSet/Split'
-spectrogram_file = 'features/spectrogram'
+spectrogram_file = 'features/mel_spectrogram'
 
 if __name__ == '__main__':
     need_split = data_processing.process_audio_folder_with_categories(input_data, processed_data)
