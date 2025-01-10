@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.layers import Reshape, LSTM
 import matplotlib.pyplot as plt
 import json
 
@@ -71,7 +72,7 @@ def train_cnn_model(data_folder, model_output, epochs=20, batch_size=32, img_siz
         model = load_model(model_output)
     else:
         # 否则创建新模型
-        model = build_cnn_model(img_size, train_generator.num_classes)
+        model = build_cnn_rnn_model(img_size, train_generator.num_classes)
         model.summary()
 
     # 编译模型
@@ -107,13 +108,13 @@ def train_cnn_model(data_folder, model_output, epochs=20, batch_size=32, img_siz
 
 
 # 模型定义封装
-def build_cnn_model(img_size, num_classes):
+def build_cnn_rnn_model(img_size, num_classes):
     """
-    定义并返回 CNN 模型。
+    定义并返回包含 CNN 和 RNN 的模型。
 
     :param img_size: 输入图像尺寸 (height, width)
     :param num_classes: 输出类别数
-    :return: 已定义的 CNN 模型
+    :return: 已定义的 CNN-RNN 模型
     """
     model = Sequential([
         # 卷积层 1
@@ -128,8 +129,11 @@ def build_cnn_model(img_size, num_classes):
         Conv2D(128, (3, 3), activation='relu'),
         MaxPooling2D(pool_size=(2, 2)),
 
-        # 展平
-        Flatten(),
+        # 将卷积层输出转换为适合 RNN 的形状
+        Reshape((-1, 128)),
+
+        # RNN 层 (LSTM 或 GRU)
+        LSTM(128, return_sequences=False),  # return_sequences=False 表示输出为一个固定长度的向量
 
         # 全连接层
         Dense(128, activation='relu'),
@@ -173,6 +177,6 @@ def plot_training_curves(history):
 if __name__ == "__main__":
     # 用户提供的路径
     data_folder = "../features/spectrogram/CREMA-D"  # 包含 train、val、test 的文件夹路径
-    model_output = "../models/cnn_mel_spectrogram_model.h5"  # 模型保存路径
+    model_output = "../models/cnn_rnn_spectrogram_model.keras"  # 将 .h5 改为 .keras
 
     train_cnn_model(data_folder, model_output, epochs=10, batch_size=32, img_size=(224, 224), resume_training=True)

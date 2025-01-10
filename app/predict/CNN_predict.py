@@ -7,7 +7,7 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 from app.predict.model_factory import register_model
 from app.visible.spectrogram import spectrogram_base64
-from app.model_training.cnn_spectrogram import build_cnn_model
+from app.model_training.cnn_rnn_spectrogram import build_cnn_rnn_model
 from app.predict.Base_model import BaseModel
 import base64
 import io
