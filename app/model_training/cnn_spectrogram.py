@@ -54,10 +54,10 @@ def train_cnn_model(data_folder, model_output, epochs=20, batch_size=32, img_siz
     # 反转字典用于反编码
     index_to_class = {v: k for k, v in class_indices.items()}
 
-    # 自定义保存路径（可以根据需要修改路径）
+    # 保存路径
     save_path = "../models/label_encoder/CREMA-D_CNN.json"
 
-    # 确保目录存在，如果目录不存在则创建
+    # 确保目录存在
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
     # 将类别映射保存为文件
@@ -170,4 +170,4 @@ if __name__ == "__main__":
     model_output = "../models/cnn_spectrogram_model.h5"  # 模型保存路径
 
     # 设置 resume_training 为 True 来继续训练
-    train_cnn_model(data_folder, model_output, epochs=20, batch_size=32, img_size=(224, 224), resume_training=True)
+    train_cnn_model(data_folder, model_output, epochs=10, batch_size=32, img_size=(224, 224), resume_training=True)

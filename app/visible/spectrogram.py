@@ -55,7 +55,7 @@ def spectrogram_base64(input_data, sr=16000):
     plt.axis('off')  # 关闭坐标轴
     plt.gca().set_position([0, 0, 1, 1])  # 去除图像边距
     img_buf_no_coords = io.BytesIO()
-    plt.savefig(img_buf_no_coords, format='png', bbox_inches='tight', pad_inches=0)
+    plt.savefig(img_buf_no_coords, format='png', bbox_inches='tight', pad_inches=0, transparent=False)
     img_buf_no_coords.seek(0)
     base64_no_coords = base64.b64encode(img_buf_no_coords.read()).decode('utf-8')
     plt.close()

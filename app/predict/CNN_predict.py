@@ -73,10 +73,8 @@ class CNN(BaseModel):
             spectrogram_bytes = base64.b64decode(spectrogram_base64_str)
             # 打开字节流为图像
             spectrogram_image = Image.open(io.BytesIO(spectrogram_bytes))
-
-            # 检查图像的模式
-            if spectrogram_image.mode != 'RGB':  # 如果图像不是 RGB 模式，则转换
-                spectrogram_image = spectrogram_image.convert('RGB')
+            # 转换成RGB模式
+            spectrogram_image = spectrogram_image.convert('RGB')
 
             # 调整图像大小
             img_size = (224, 224)
