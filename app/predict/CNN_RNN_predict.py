@@ -23,7 +23,7 @@ class CNN(BaseModel):
         :param sr: 采样率
         """
         super().__init__(processed_audio, sr)
-        self.MODEL_PATH = "models/cnn_spectrogram_model.h5"  # 模型路径
+        self.MODEL_PATH = "models/cnn_rnn_spectrogram_model.keras"  # 模型路径
         self.LABEL_ENCODER_PATH = "models/label_encoder/CREMA-D_CNN.json"  # 类别映射文件路径
         self.model = None
         self.label_mapping = None  # 存储类别映射

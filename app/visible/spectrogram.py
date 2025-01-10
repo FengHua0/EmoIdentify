@@ -4,6 +4,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import io
 import base64
+from matplotlib.backends.backend_template import FigureCanvas
+
+
+def getbase64():
+    img_buf_with_coords = io.BytesIO()
+    plt.savefig(img_buf_with_coords, format='png')
+    img_buf_with_coords.seek(0)
+    base64_with_coords = base64.b64encode(img_buf_with_coords.read()).decode('utf-8')
+    plt.close()
+    return base64_with_coords
 
 def spectrogram_base64(input_data, sr=16000):
     """
@@ -24,35 +34,33 @@ def spectrogram_base64(input_data, sr=16000):
     else:
         raise ValueError("输入数据必须是文件路径 (str) 或音频数据 (NumPy 数组)。")
 
-    # 梅尔频谱图
-    S = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=2048, hop_length=1024)
-    S = librosa.power_to_db(S, ref=np.max)
+    # 频率范围(默认是 0 - sr / 2，使用这个模拟人耳的高频)
+    mel_low = 0
+    mel_high = 2595 * np.log10(1 + (sr / 2) / 700)
 
-    # 创建频谱图
+    # 使用 librosa 生成梅尔频谱图
+    S = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=2048, hop_length=1024, fmin=mel_low, fmax=mel_high)
+
+    # 使用 20 * np.log10 对频谱图进行对数转换
+    S = 20 * np.log10(np.maximum(S, np.finfo(float).eps))
+
+    # 有坐标的图片（用于特征展示）：base64_with_coords
     plt.figure(figsize=(12, 6))
     librosa.display.specshow(S, sr=sr, x_axis='time', y_axis='log', cmap='viridis')
     plt.title('Spectrogram')
     plt.xlabel('Time (s)')
     plt.ylabel('Frequency (Hz)')
     plt.colorbar(format='%+2.0f dB')
-
-    # 有坐标的图片（用于特征展示）：base64_with_coords
-    img_buf_with_coords = io.BytesIO()
-    plt.savefig(img_buf_with_coords, format='png')
-    img_buf_with_coords.seek(0)
-    base64_with_coords = base64.b64encode(img_buf_with_coords.read()).decode('utf-8')
-    plt.close()
+    plt.show()
+    base64_with_coords = getbase64()
 
     # 没有坐标的图片（用于训练和预测）
     plt.figure(figsize=(12, 6))
-    librosa.display.specshow(S, sr=sr, x_axis=None, y_axis=None, cmap='viridis')
+    librosa.display.specshow(S, sr=sr, x_axis='time', y_axis='log', cmap='viridis')
     plt.axis('off')  # 关闭坐标轴
     plt.gca().set_position([0, 0, 1, 1])  # 去除图像边距
-    img_buf_no_coords = io.BytesIO()
-    plt.savefig(img_buf_no_coords, format='png', bbox_inches='tight', pad_inches=0, transparent=False)
-    img_buf_no_coords.seek(0)
-    base64_no_coords = base64.b64encode(img_buf_no_coords.read()).decode('utf-8')
-    plt.close()
+    plt.show()
+    base64_no_coords = getbase64()
 
     show = {
         'feature_name': 'Spectrogram',  # 数据的名称

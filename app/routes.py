@@ -11,7 +11,7 @@ from app.visible.waveform import waveform_base64
 
 from app.predict.svm_predict import SVM
 from app.predict.RNN_predict import RNN
-from app.predict.CNN_predict import CNN
+from app.predict.CNN_RNN_predict import CNN
 
 app = Flask(__name__)
 

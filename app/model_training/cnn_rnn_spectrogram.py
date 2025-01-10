@@ -179,4 +179,4 @@ if __name__ == "__main__":
     data_folder = "../features/spectrogram/CREMA-D"  # 包含 train、val、test 的文件夹路径
     model_output = "../models/cnn_rnn_spectrogram_model.keras"  # 将 .h5 改为 .keras
 
-    train_cnn_model(data_folder, model_output, epochs=10, batch_size=32, img_size=(224, 224), resume_training=True)
+    train_cnn_model(data_folder, model_output, epochs=25, batch_size=32, img_size=(224, 224), resume_training=True)
