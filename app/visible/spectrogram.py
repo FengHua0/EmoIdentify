@@ -24,19 +24,13 @@ def spectrogram_base64(input_data, sr=16000):
     else:
         raise ValueError("输入数据必须是文件路径 (str) 或音频数据 (NumPy 数组)。")
 
-
-    # 计算短时傅里叶变换（STFT）
-    D = librosa.stft(y)
-
-    # 计算幅值谱
-    magnitude = np.abs(D)
-
-    # 转换为对数幅值谱（分贝单位）
-    log_magnitude = librosa.amplitude_to_db(magnitude, ref=np.max)
+    # 梅尔频谱图
+    S = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=2048, hop_length=1024)
+    S = librosa.power_to_db(S, ref=np.max)
 
     # 创建频谱图
     plt.figure(figsize=(12, 6))
-    librosa.display.specshow(log_magnitude, sr=sr, x_axis='time', y_axis='log', cmap='viridis')
+    librosa.display.specshow(S, sr=sr, x_axis='time', y_axis='log', cmap='viridis')
     plt.title('Spectrogram')
     plt.xlabel('Time (s)')
     plt.ylabel('Frequency (Hz)')
@@ -51,7 +45,7 @@ def spectrogram_base64(input_data, sr=16000):
 
     # 没有坐标的图片（用于训练和预测）
     plt.figure(figsize=(12, 6))
-    librosa.display.specshow(log_magnitude, sr=sr, x_axis=None, y_axis=None, cmap='viridis')
+    librosa.display.specshow(S, sr=sr, x_axis=None, y_axis=None, cmap='viridis')
     plt.axis('off')  # 关闭坐标轴
     plt.gca().set_position([0, 0, 1, 1])  # 去除图像边距
     img_buf_no_coords = io.BytesIO()
