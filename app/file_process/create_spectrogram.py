@@ -60,3 +60,8 @@ def create_spectrogram(input_folder, output_folder, sr=16000):
 
     # 返回保存频谱图的文件夹路径
     return output_dataset_folder
+
+if __name__ == '__main__':
+    spectrogram_file = '../features/mel_spectrogram'
+    splited_data = '../../ProcessedDataSet/Split/CREMA-D'
+    create_spectrogram(splited_data, spectrogram_file)

@@ -51,7 +51,6 @@ def spectrogram_base64(input_data, sr=16000):
     plt.xlabel('Time (s)')
     plt.ylabel('Frequency (Hz)')
     plt.colorbar(format='%+2.0f dB')
-    plt.show()
     base64_with_coords = getbase64()
 
     # 没有坐标的图片（用于训练和预测）
@@ -59,7 +58,6 @@ def spectrogram_base64(input_data, sr=16000):
     librosa.display.specshow(S, sr=sr, x_axis='time', y_axis='log', cmap='viridis')
     plt.axis('off')  # 关闭坐标轴
     plt.gca().set_position([0, 0, 1, 1])  # 去除图像边距
-    plt.show()
     base64_no_coords = getbase64()
 
     show = {
