@@ -8,6 +8,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import classification_report
 from torch.utils.data import Dataset, DataLoader
 from scipy.stats import mode
+from app.model_training.cnn_rnn_spectrogram import log_results
 
 # 自定义帧级数据集
 class EmotionDataset(Dataset):
@@ -116,6 +117,10 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
 
         print(f"Epoch [{epoch+1}/{epochs}], Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, "
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+
+        # 记录日志
+        log_file = "../model_visible/mlp_two.txt"
+        log_results(log_file, epoch + 1, train_loss, train_acc, val_loss, val_acc)
 
 
 # 测试模型函数

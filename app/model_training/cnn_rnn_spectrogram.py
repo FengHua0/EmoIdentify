@@ -1,182 +1,219 @@
 import os
-import tensorflow as tf
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.layers import Reshape, LSTM
-import matplotlib.pyplot as plt
 import json
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
+from torch.utils.data import Dataset, DataLoader
+import numpy as np
 
-# 主函数定义
-def train_cnn_model(data_folder, model_output, epochs=20, batch_size=32, img_size=(224, 224), resume_training=False):
+# 设备检测
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"使用设备: {device}")
+
+
+# 数据加载函数
+def load_datasets(data_folder, img_size=(224, 224), batch_size=64):
     """
-    基于 CNN 的频谱图六分类训练函数。每5轮保存一次模型。
+    加载数据集并返回 DataLoader
 
-    :param data_folder: 包含 train、val、test 文件夹的根目录
-    :param model_output: 模型保存路径
-    :param epochs: 训练轮数，默认 20
-    :param batch_size: 批量大小，默认 32
-    :param img_size: 输入图像尺寸，默认 (224, 224)
-    :param resume_training: 是否加载已有模型继续训练，默认 False
+    Args:
+        data_folder (str): 数据集所在路径
+        img_size (tuple): 图像大小，默认为 (224, 224)
+        batch_size (int): 批量大小
+
+    Returns:
+        train_loader, val_loader, test_loader (DataLoader): 训练、验证、测试集的数据加载器
+        class_indices (dict): 类别索引映射
     """
-    # 检查数据路径
-    train_dir = os.path.join(data_folder, "train")
-    val_dir = os.path.join(data_folder, "val")
-    test_dir = os.path.join(data_folder, "test")
-    if not all([os.path.exists(train_dir), os.path.exists(val_dir), os.path.exists(test_dir)]):
-        raise FileNotFoundError("数据文件夹结构不完整，请确保 train、val 和 test 文件夹存在。")
+    print(f"加载数据集: {data_folder}")
 
-    # 数据加载与增强
-    datagen = ImageDataGenerator(rescale=1.0 / 255)
-
-    train_generator = datagen.flow_from_directory(
-        train_dir,
-        target_size=img_size,
-        batch_size=batch_size,
-        class_mode='categorical'
-    )
-    val_generator = datagen.flow_from_directory(
-        val_dir,
-        target_size=img_size,
-        batch_size=batch_size,
-        class_mode='categorical'
-    )
-    test_generator = datagen.flow_from_directory(
-        test_dir,
-        target_size=img_size,
-        batch_size=batch_size,
-        class_mode='categorical'
-    )
-
-    # 获取类别映射
-    class_indices = train_generator.class_indices
-    print(f"类别映射: {class_indices}")
-
-    # 反转字典用于反编码
-    index_to_class = {v: k for k, v in class_indices.items()}
-
-    # 保存路径
-    save_path = "../models/label_encoder/CREMA-D_CNN.json"
-
-    # 确保目录存在
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-    # 将类别映射保存为文件
-    with open(save_path, "w") as f:
-        json.dump(index_to_class, f)
-    print(f"类别映射已保存为 {save_path}")
-
-    # 如果需要加载已有模型继续训练
-    if resume_training and os.path.exists(model_output):
-        print(f"加载已有模型: {model_output}")
-        model = load_model(model_output)
-    else:
-        # 否则创建新模型
-        model = build_cnn_rnn_model(img_size, train_generator.num_classes)
-        model.summary()
-
-    # 编译模型
-    model.compile(
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        metrics=['accuracy']
-    )
-
-    # 创建模型检查点回调函数，每5轮保存一次模型
-    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-        model_output,
-        save_weights_only=False,
-        save_best_only=False,
-        save_freq=5 * train_generator.samples // batch_size,  # 每5个epoch保存一次模型
-        verbose=1
-    )
-
-    # 模型训练
-    history = model.fit(
-        train_generator,
-        epochs=epochs,
-        validation_data=val_generator,
-        callbacks=[checkpoint_callback]  # 加入回调
-    )
-
-    # 模型验证（测试集评估）
-    test_loss, test_accuracy = model.evaluate(test_generator)
-    print(f"测试集损失: {test_loss:.4f}, 测试集准确率: {test_accuracy:.4f}")
-
-    # 绘制训练曲线
-    plot_training_curves(history)
-
-
-# 模型定义封装
-def build_cnn_rnn_model(img_size, num_classes):
-    """
-    定义并返回包含 CNN 和 RNN 的模型。
-
-    :param img_size: 输入图像尺寸 (height, width)
-    :param num_classes: 输出类别数
-    :return: 已定义的 CNN-RNN 模型
-    """
-    model = Sequential([
-        # 卷积层 1
-        Conv2D(32, (3, 3), activation='relu', input_shape=(img_size[0], img_size[1], 3)),
-        MaxPooling2D(pool_size=(2, 2)),
-
-        # 卷积层 2
-        Conv2D(64, (3, 3), activation='relu'),
-        MaxPooling2D(pool_size=(2, 2)),
-
-        # 卷积层 3
-        Conv2D(128, (3, 3), activation='relu'),
-        MaxPooling2D(pool_size=(2, 2)),
-
-        # 将卷积层输出转换为适合 RNN 的形状
-        Reshape((-1, 128)),
-
-        # RNN 层 (LSTM 或 GRU)
-        LSTM(128, return_sequences=False),  # return_sequences=False 表示输出为一个固定长度的向量
-
-        # 全连接层
-        Dense(128, activation='relu'),
-        Dropout(0.5),
-
-        # 输出层
-        Dense(num_classes, activation='softmax')  # 输出类别数
+    transform = transforms.Compose([
+        transforms.Resize(img_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
 
-    return model
+    train_dataset = datasets.ImageFolder(os.path.join(data_folder, "train"), transform=transform)
+    val_dataset = datasets.ImageFolder(os.path.join(data_folder, "val"), transform=transform)
+    test_dataset = datasets.ImageFolder(os.path.join(data_folder, "test"), transform=transform)
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+
+    print(f"数据加载完成: 训练集 {len(train_dataset)} 样本, 验证集 {len(val_dataset)} 样本, 测试集 {len(test_dataset)} 样本")
+
+    # 获取类别索引并保存
+    class_indices = train_dataset.class_to_idx
+    index_to_class = {v: k for k, v in class_indices.items()}
+    save_path = "../models/label_encoder/CREMA-D_CNN.json"
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    with open(save_path, "w") as f:
+        json.dump(index_to_class, f)
+    print(f"类别标签映射已保存: {save_path}")
+
+    return train_loader, val_loader, test_loader, class_indices
 
 
-# 绘制训练曲线
-def plot_training_curves(history):
+# 自定义 CNN-RNN 模型
+class CNN_RNN(nn.Module):
+    def __init__(self, num_classes):
+        super(CNN_RNN, self).__init__()
+
+        # CNN 部分
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(256, 512, kernel_size=3, padding=1)  # 额外增加一层
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.dropout = nn.Dropout(0.5)
+
+        # RNN 部分
+        self.lstm = nn.LSTM(input_size=512, hidden_size=256, num_layers=2, batch_first=True, dropout=0.3)
+
+        # 全连接层
+        self.fc1 = nn.Linear(256, 128)
+        self.fc2 = nn.Linear(128, num_classes)
+
+    def forward(self, x):
+        x = self.pool(torch.relu(self.conv1(x)))
+        x = self.pool(torch.relu(self.conv2(x)))
+        x = self.pool(torch.relu(self.conv3(x)))
+        x = self.pool(torch.relu(self.conv4(x)))  # 额外增加的 CNN 层
+
+        # 变换为 (batch_size, 时间步, 特征数) 格式供 RNN 使用
+        x = x.view(x.size(0), -1, 512)
+        x, _ = self.lstm(x)
+        x = self.dropout(torch.relu(self.fc1(x[:, -1, :])))
+        x = self.fc2(x)
+        return x
+
+
+def log_results(log_file, epoch, train_loss, train_acc, val_loss, val_acc):
     """
-    绘制训练和验证的损失与准确率曲线。
+    将每个 epoch 的训练结果记录到日志文件
+    Args:
+        log_file (str): 日志文件路径
+        epoch (int): 当前 epoch
+        train_loss (float): 训练损失
+        train_acc (float): 训练准确率
+        val_loss (float): 验证损失
+        val_acc (float): 验证准确率
     """
-    # 绘制训练和验证损失
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['loss'], label='Train Loss')
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-    plt.title('Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
+    with open(log_file, "a") as f:
+        f.write(f"Epoch {epoch}: Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f} | "
+                f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
 
-    # 绘制训练和验证准确率
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['accuracy'], label='Train Accuracy')
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-    plt.title('Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.legend()
+# 模型训练函数
+def train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=20,
+                resume_training=False):
+    """
+    训练 CNN-RNN 模型，并在训练过程中持续输出 batch 级别的损失和准确率。
 
-    plt.show()
+    Args:
+        model (nn.Module): CNN-RNN 模型
+        criterion (nn.Module): 损失函数
+        optimizer (optim.Optimizer): 优化器
+        train_loader (DataLoader): 训练集
+        val_loader (DataLoader): 验证集
+        device (torch.device): 计算设备
+        model_output (str): 模型保存路径
+        epochs (int): 训练轮数
+        resume_training (bool): 是否加载已有模型继续训练
+
+    Returns:
+        None
+    """
+    model.to(device)
+    best_val_acc = 0.0
+    best_val_loss = 1000
+
+    # 继续训练
+    if resume_training and os.path.exists(model_output):
+        print(f"加载已有模型: {model_output}")
+        model.load_state_dict(torch.load(model_output, weights_only=True))
+
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
+    print("开始训练模型...")
+
+    for epoch in range(epochs):
+        model.train()
+        total_loss, correct = 0.0, 0
+
+        print(f"\nEpoch {epoch + 1}/{epochs} 开始训练...")
+        for batch_idx, (images, labels) in enumerate(train_loader):
+            images, labels = images.to(device), labels.to(device)
+
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+            correct += (outputs.argmax(1) == labels).sum().item()
+
+            # 计算当前 batch 训练准确率
+            batch_acc = (outputs.argmax(1) == labels).sum().item() / labels.size(0)
+
+            # 实时输出 batch 级别的损失和准确率
+            print(f"\rEpoch [{epoch + 1}/{epochs}] | Batch [{batch_idx + 1}/{len(train_loader)}] "
+                  f"Loss: {loss.item():.4f} | Batch Acc: {batch_acc:.4f}", end='', flush=True)
+
+        # 计算 epoch 级别的训练损失和准确率
+        train_acc = correct / len(train_loader.dataset)
+        train_loss = total_loss / len(train_loader)
+
+        # 验证
+        model.eval()
+        val_loss, val_correct = 0, 0
+        with torch.no_grad():
+            for images, labels in val_loader:
+                images, labels = images.to(device), labels.to(device)
+
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+
+                val_loss += loss.item()
+                val_correct += (outputs.argmax(1) == labels).sum().item()
+
+        val_acc = val_correct / len(val_loader.dataset)
+        val_loss /= len(val_loader)
+
+        # 清除上一行的 `\r` 影响，并固定最终结果
+        print(f"\nEpoch [{epoch + 1}/{epochs}] -> "
+              f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} | "
+              f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+        # 记录日志
+        log_file = "../model_visible/cnn_rnn.txt"
+        log_results(log_file, epoch + 1, train_loss, train_acc, val_loss, val_acc)
+
+        # 保存最优模型
+        if val_acc > best_val_acc and val_loss < best_val_loss:
+            best_val_acc = val_acc
+            best_val_loss = val_loss
+            print(f"保存最优模型 (Epoch {epoch + 1}) 到: {model_output}")
+            torch.save(model.state_dict(), model_output)
 
 
 # 主程序
 if __name__ == "__main__":
-    # 用户提供的路径
-    data_folder = "../features/spectrogram/CREMA-D"  # 包含 train、val、test 的文件夹路径
-    model_output = "../models/cnn_rnn_spectrogram_model.keras"  # 将 .h5 改为 .keras
+    # 配置路径
+    data_folder = "../features/mel_spectrogram/CREMA-D"
+    model_output = "../models/cnn_rnn_spectrogram_model.pth"
 
-    train_cnn_model(data_folder, model_output, epochs=20, batch_size=32, img_size=(224, 224), resume_training=True)
+    # 加载数据
+    train_loader, val_loader, test_loader, class_indices = load_datasets(data_folder)
+
+    # 初始化模型
+    model = CNN_RNN(num_classes=len(class_indices))
+
+    # 损失函数 & 优化器
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+
+    # 训练模型
+    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=30,
+                resume_training=True)

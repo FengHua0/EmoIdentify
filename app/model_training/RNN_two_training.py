@@ -8,6 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
 from torch.utils.data import Dataset, DataLoader
 import joblib  # 用于保存和加载 LabelEncoder
+from app.model_training.cnn_rnn_spectrogram import log_results
 
 # 自定义数据集
 class EmotionDataset(Dataset):
@@ -150,11 +151,15 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
 
         print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, "
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
-        # 保存最优模型
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            print(f"保存最优模型 (Epoch {epoch + 1}) 到: {model_output}")
-            torch.save(model.state_dict(), model_output)
+        # 记录日志
+        log_file = "../model_visible/rnn.txt"
+        log_results(log_file, epoch + 1, train_loss, train_acc, val_loss, val_acc)
+
+        # # 保存最优模型
+        # if val_acc > best_val_acc:
+        #     best_val_acc = val_acc
+        #     print(f"保存最优模型 (Epoch {epoch + 1}) 到: {model_output}")
+        #     torch.save(model.state_dict(), model_output)
 
 
 

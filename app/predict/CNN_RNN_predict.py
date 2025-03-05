@@ -1,67 +1,74 @@
+import torch
 import json
 import os
 import numpy as np
-import torch
 from PIL import Image
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import img_to_array
-from app.predict.model_factory import register_model
-from app.visible.spectrogram import spectrogram_base64
-from app.model_training.cnn_rnn_spectrogram import build_cnn_rnn_model
-from app.predict.Base_model import BaseModel
-import base64
-import io
-import matplotlib.pyplot as plt
+import torch.nn.functional as F
+from torchvision import transforms
 from io import BytesIO
+import base64
+import matplotlib.pyplot as plt
 
-@register_model('cnn')
-class CNN(BaseModel):
+from app.visible.spectrogram import spectrogram_base64
+
+
+class CNN_RNN_Predictor:
     def __init__(self, processed_audio, sr):
         """
-        初始化 CNN 模型。
+        初始化 PyTorch 版本的 CNN-RNN 预测器
         :param processed_audio: 预处理后的音频数据
         :param sr: 采样率
         """
-        super().__init__(processed_audio, sr)
-        self.MODEL_PATH = "models/cnn_rnn_spectrogram_model.keras"  # 模型路径
+        self.processed_audio = processed_audio
+        self.sr = sr
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.MODEL_PATH = "models/cnn_rnn_spectrogram_model.pth"  # PyTorch 模型路径
         self.LABEL_ENCODER_PATH = "models/label_encoder/CREMA-D_CNN.json"  # 类别映射文件路径
         self.model = None
         self.label_mapping = None  # 存储类别映射
         self.image = None  # 保存频谱图
+
         self.load_model()
         self.load_label_mapping()
 
     def load_model(self):
         """
-        加载训练好的 CNN 模型。
+        加载训练好的 PyTorch CNN-RNN 模型
         """
         try:
             if not os.path.exists(self.MODEL_PATH):
                 raise FileNotFoundError(f"模型文件未找到: {self.MODEL_PATH}")
-            self.model = load_model(self.MODEL_PATH)
-            print("CNN 模型加载成功！")
+
+            from app.model_training.cnn_rnn_spectrogram import CNN_RNN  # 导入模型结构
+            num_classes = len(self.label_mapping) if self.label_mapping else 6  # 默认6类
+            self.model = CNN_RNN(num_classes=num_classes).to(self.device)
+            self.model.load_state_dict(torch.load(self.MODEL_PATH, map_location=self.device))
+            self.model.eval()  # 设置为评估模式
+            print("PyTorch CNN-RNN 模型加载成功！")
         except Exception as e:
-            print(f"加载模型时出错: {e}")
+            print(f"加载 PyTorch 模型时出错: {e}")
             self.model = None
 
     def load_label_mapping(self):
         """
-        加载类别映射文件。
+        加载类别映射文件
         """
         try:
             if not os.path.exists(self.LABEL_ENCODER_PATH):
                 raise FileNotFoundError(f"类别映射文件未找到: {self.LABEL_ENCODER_PATH}")
             with open(self.LABEL_ENCODER_PATH, "r") as f:
                 self.label_mapping = json.load(f)
+            print("类别映射加载成功！")
         except Exception as e:
             print(f"加载类别映射时出错: {e}")
             self.label_mapping = None
 
     def extract_features(self):
         """
-        提取频谱图特征。
+        提取 PyTorch 版本的频谱图特征
         Returns:
-            np.ndarray: 预处理后的图片数组，用于模型输入
+            torch.Tensor: 预处理后的图片张量
         """
         try:
             # 获取频谱图的 Base64 编码
@@ -72,23 +79,16 @@ class CNN(BaseModel):
             # 解码 Base64 编码为字节流
             spectrogram_bytes = base64.b64decode(spectrogram_base64_str)
             # 打开字节流为图像
-            spectrogram_image = Image.open(io.BytesIO(spectrogram_bytes))
-            # 转换成RGB模式
-            spectrogram_image = spectrogram_image.convert('RGB')
+            spectrogram_image = Image.open(BytesIO(spectrogram_bytes)).convert('RGB')
 
-            # 调整图像大小
-            img_size = (224, 224)
-            spectrogram_image = spectrogram_image.resize(img_size)
-
-            # 转换为 NumPy 数组
-            img_array = img_to_array(spectrogram_image)
-
-            # 增加批次维度
-            img_array = np.expand_dims(img_array, axis=0)
-            # 归一化到 [0, 1]
-            img_array = img_array / 255.0
-
-            return img_array
+            # 图像预处理
+            transform = transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+            ])
+            img_tensor = transform(spectrogram_image).unsqueeze(0)  # 添加批次维度
+            return img_tensor.to(self.device)
 
         except Exception as e:
             print(f"频谱图提取或预处理时出错: {e}")
@@ -96,14 +96,14 @@ class CNN(BaseModel):
 
     def plot_confidence(self, predictions):
         """
-        绘制类别置信度的柱状图，并返回其 Base64 编码。
+        绘制类别置信度的柱状图，并返回 Base64 编码
         :param predictions: 模型预测的置信度
         :return: str, 图像的 Base64 编码
         """
         try:
             # 获取类别标签
             categories = list(self.label_mapping.values())
-            confidences = predictions[0]
+            confidences = predictions.cpu().numpy().flatten()
 
             # 绘制柱状图
             plt.figure(figsize=(10, 6))
@@ -127,9 +127,9 @@ class CNN(BaseModel):
 
     def predict(self):
         """
-        使用训练好的 CNN 模型对频谱图进行分类预测。
+        使用训练好的 CNN-RNN 模型对频谱图进行分类预测
         Returns:
-            dict: 包含预测类别名称和置信度图像的 Base64 编码的结果
+            dict: 预测类别名称和置信度图像的 Base64 编码
         """
         if self.model is None:
             return {'error': '模型未正确加载。'}
@@ -138,18 +138,20 @@ class CNN(BaseModel):
 
         try:
             # 提取频谱图特征
-            img_array = self.extract_features()
-            if img_array is None:
+            img_tensor = self.extract_features()
+            if img_tensor is None:
                 raise ValueError("特征提取失败！")
 
-            # 模型预测
-            predictions = self.model.predict(img_array)
-            predicted_index = np.argmax(predictions, axis=1)[0]  # 获取概率最大的类别索引
+            # 模型推理
+            with torch.no_grad():
+                outputs = self.model(img_tensor)  # 通过模型前向传播
+                predictions = F.softmax(outputs, dim=1)  # 应用 softmax 以获得概率分布
+                predicted_index = torch.argmax(predictions, dim=1).item()  # 获取最大概率的类别索引
 
             # 解码类别索引为标签
             predicted_emotion = self.label_mapping[str(predicted_index)]
 
-            # 绘制置信度图并返回图像的 Base64 编码
+            # 绘制置信度图
             confidence_base64 = self.plot_confidence(predictions)
 
             confidence = {
