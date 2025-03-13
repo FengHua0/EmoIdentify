@@ -146,12 +146,12 @@ class CNN(BaseModel):
 
             # 模型推理
             with torch.no_grad():
-                outputs = self.model(img_tensor)  # 通过模型前向传播
-                predictions = F.softmax(outputs, dim=1)  # 应用 softmax 以获得概率分布
+                outputs, _ = self.model(img_tensor)  # **正确解包，避免 tuple 误用 .softmax()**
+                predictions = F.softmax(outputs, dim=1)  # 计算 softmax 以获得概率分布
                 predicted_index = torch.argmax(predictions, dim=1).item()  # 获取最大概率的类别索引
 
-            # 解码类别索引为标签
-            predicted_emotion = self.label_mapping[str(predicted_index)]
+            # **确保 predicted_index 为字符串类型，以匹配 JSON 映射**
+            predicted_emotion = self.label_mapping.get(str(predicted_index), "Unknown")
 
             # 绘制置信度图
             confidence_base64 = self.plot_confidence(predictions)
@@ -171,3 +171,4 @@ class CNN(BaseModel):
         except Exception as e:
             print(f"预测时出错: {e}")
             return {'error': str(e)}
+

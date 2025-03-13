@@ -6,16 +6,21 @@ import io
 import base64
 
 
-def waveform_base64(audio_bytes, sr=16000):
+def waveform_base64(input_data, sr=16000):
     """
-    将音频数据转换为波形图并返回其 Base64 编码。
+    将音频数据（字节流或 NumPy 数组）转换为波形图并返回其 Base64 编码。
 
-    :param audio_bytes: 音频数据的字节流
+    :param input_data: 音频数据，支持字节流（bytes）或 NumPy 数组（numpy.ndarray）
     :param sr: 采样率，默认 16000
     :return: 包含 'feature_name' 和 'base64' 的字典
     """
-    # 使用 librosa 加载音频数据
-    y, sr = librosa.load(io.BytesIO(audio_bytes), sr=sr, mono=True)
+    # 判断输入类型并加载音频数据
+    if isinstance(input_data, bytes):  # 处理字节流
+        y, _ = librosa.load(io.BytesIO(input_data), sr=sr, mono=True)
+    elif isinstance(input_data, np.ndarray):  # 处理 NumPy 数组
+        y = input_data
+    else:
+        raise ValueError("输入数据必须是字节流 (bytes) 或 NumPy 数组 (numpy.ndarray)。")
 
     # 创建波形图
     plt.figure(figsize=(12, 6))

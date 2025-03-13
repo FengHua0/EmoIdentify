@@ -5,7 +5,6 @@ from pydub import AudioSegment
 import librosa
 from app.file_process.data_processing import preprocess_audio
 from app.predict.model_factory import model_factory
-# from app.visible.MFCC_visible import mfcc_heatmap
 from app.visible.spectrogram import spectrogram_base64
 from app.visible.waveform import waveform_base64
 
@@ -57,16 +56,18 @@ def predict():
         else:
             return jsonify({'error': 'Invalid audio file format. Please upload wav, mp3, or webm files.'}), 400
 
+        # 预处理
+        wav_bytes = preprocess_audio(wav_bytes)
+
         # 特征提取和可视化
         spectrogram, _ = spectrogram_base64(wav_bytes)
         waveform = waveform_base64(wav_bytes)
 
-        processed_audio = preprocess_audio(y, sr=sr)
-        if processed_audio is None:
+        if wav_bytes is None:
             return jsonify({'error': 'Failed to preprocess audio'}), 500
         # 使用工厂模式获取模型实例
         try:
-            model = model_factory(model_type, processed_audio, sr)
+            model = model_factory(model_type, wav_bytes, sr)
         except ValueError as ve:
             return jsonify({'error': str(ve)}), 400
 

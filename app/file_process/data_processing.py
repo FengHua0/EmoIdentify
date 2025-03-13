@@ -2,6 +2,7 @@ import os
 import librosa
 import numpy as np
 import noisereduce as nr
+from io import BytesIO
 import soundfile as sf
 
 # 1. 预加重
@@ -69,8 +70,10 @@ def preprocess_audio(input_data, sr=16000, pre_emph_coeff=0.97):
             y, _ = librosa.load(input_data, sr=sr, mono=True)
         elif isinstance(input_data, np.ndarray):
             y = input_data
+        elif isinstance(input_data, bytes):  # 处理字节流
+            y, _ = librosa.load(BytesIO(input_data), sr=sr, mono=True)
         else:
-            raise ValueError("输入数据必须是文件路径 (str) 或音频数据 (NumPy 数组)。")
+            raise ValueError("输入数据必须是文件路径 (str)、音频数据 (NumPy 数组) 或字节流 (bytes)。")
 
         # 检查音频数据是否为空
         if len(y) == 0:
@@ -81,7 +84,6 @@ def preprocess_audio(input_data, sr=16000, pre_emph_coeff=0.97):
         y_denoised = pre_emphasis(y, coeff=pre_emph_coeff)
         # 降噪处理
         y_preemphasized = noise_reduction(y_denoised, sr)
-
 
         return y_preemphasized  # 返回处理后的音频数据
 
