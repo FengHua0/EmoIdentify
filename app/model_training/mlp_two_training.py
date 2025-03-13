@@ -120,7 +120,7 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
 
         # 记录日志
         log_file = "../model_visible/mlp_two.txt"
-        log_results(log_file, epoch + 1, train_loss, train_acc, val_loss, val_acc)
+        log_results(log_file, train_loss, train_acc, val_loss, val_acc)
 
 
 # 测试模型函数

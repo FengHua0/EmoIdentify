@@ -153,7 +153,7 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
         # 记录日志
         log_file = "../model_visible/rnn.txt"
-        log_results(log_file, epoch + 1, train_loss, train_acc, val_loss, val_acc)
+        log_results(log_file, train_loss, train_acc, val_loss, val_acc)
 
         # # 保存最优模型
         # if val_acc > best_val_acc:

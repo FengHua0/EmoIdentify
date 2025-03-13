@@ -8,23 +8,25 @@ from torchvision import transforms
 from io import BytesIO
 import base64
 import matplotlib.pyplot as plt
-
+from app.predict.Base_model import BaseModel
+from app.predict.model_factory import register_model
 from app.visible.spectrogram import spectrogram_base64
+from app.model_training.cnn_rnn_spectrogram import CNN_RNN
 
 
-class CNN_RNN_Predictor:
+@register_model('cnn')
+class CNN(BaseModel):
     def __init__(self, processed_audio, sr):
         """
         初始化 PyTorch 版本的 CNN-RNN 预测器
         :param processed_audio: 预处理后的音频数据
         :param sr: 采样率
         """
-        self.processed_audio = processed_audio
-        self.sr = sr
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        super().__init__(processed_audio, sr)
         self.MODEL_PATH = "models/cnn_rnn_spectrogram_model.pth"  # PyTorch 模型路径
         self.LABEL_ENCODER_PATH = "models/label_encoder/CREMA-D_CNN.json"  # 类别映射文件路径
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.model = None
         self.label_mapping = None  # 存储类别映射
         self.image = None  # 保存频谱图
@@ -40,7 +42,7 @@ class CNN_RNN_Predictor:
             if not os.path.exists(self.MODEL_PATH):
                 raise FileNotFoundError(f"模型文件未找到: {self.MODEL_PATH}")
 
-            from app.model_training.cnn_rnn_spectrogram import CNN_RNN  # 导入模型结构
+            # 加载类别映射文件，获取类别数
             num_classes = len(self.label_mapping) if self.label_mapping else 6  # 默认6类
             self.model = CNN_RNN(num_classes=num_classes).to(self.device)
             self.model.load_state_dict(torch.load(self.MODEL_PATH, map_location=self.device))
@@ -87,7 +89,7 @@ class CNN_RNN_Predictor:
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
             ])
-            img_tensor = transform(spectrogram_image).unsqueeze(0)  # 添加批次维度
+            img_tensor = transform(spectrogram_image).unsqueeze(0)  # 添加 batch 维度
             return img_tensor.to(self.device)
 
         except Exception as e:
@@ -161,7 +163,7 @@ class CNN_RNN_Predictor:
 
             # 返回预测结果和置信度图
             result = {
-                'predicted_category': predicted_emotion,  # 返回预测情感类别名称
+                'predicted_category': predicted_emotion,  # 返回情感名称
                 'confidence': confidence  # 返回置信度图
             }
             return result
