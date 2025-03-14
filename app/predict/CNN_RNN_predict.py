@@ -13,18 +13,17 @@ from app.predict.model_factory import register_model
 from app.visible.spectrogram import spectrogram_base64
 from app.model_training.cnn_rnn_spectrogram import CNN_RNN
 
-
 @register_model('cnn')
 class CNN(BaseModel):
     def __init__(self, processed_audio, sr):
         """
-        初始化 PyTorch 版本的 CNN-RNN 预测器
+        初始化 PyTorch CNN-RNN 预测器
         :param processed_audio: 预处理后的音频数据
         :param sr: 采样率
         """
         super().__init__(processed_audio, sr)
-        self.MODEL_PATH = "models/cnn_rnn_spectrogram_model.pth"  # PyTorch 模型路径
-        self.LABEL_ENCODER_PATH = "models/label_encoder/CREMA-D_CNN.json"  # 类别映射文件路径
+        self.MODEL_PATH = "models/cnn_rnn_spectrogram_model.pth"  # 模型路径
+        self.LABEL_ENCODER_PATH = "models/label_encoder/CREMA-D_CNN.json"  # 类别映射路径
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = None
@@ -85,10 +84,13 @@ class CNN(BaseModel):
 
             # 图像预处理
             transform = transforms.Compose([
-                transforms.Resize((224, 224)),
+                transforms.Resize((224,224)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                # 三通道图像，使用 ImageNet 上常用的标准化
+                transforms.Normalize([0.485, 0.456, 0.406],
+                                     [0.229, 0.224, 0.225])
             ])
+
             img_tensor = transform(spectrogram_image).unsqueeze(0)  # 添加 batch 维度
             return img_tensor.to(self.device)
 
@@ -146,11 +148,11 @@ class CNN(BaseModel):
 
             # 模型推理
             with torch.no_grad():
-                outputs, _ = self.model(img_tensor)  # **正确解包，避免 tuple 误用 .softmax()**
+                outputs, _ = self.model(img_tensor)  # 正确解包，避免 tuple 误用 .softmax()
                 predictions = F.softmax(outputs, dim=1)  # 计算 softmax 以获得概率分布
                 predicted_index = torch.argmax(predictions, dim=1).item()  # 获取最大概率的类别索引
 
-            # **确保 predicted_index 为字符串类型，以匹配 JSON 映射**
+            # 确保 predicted_index 为字符串类型，以匹配 JSON 映射
             predicted_emotion = self.label_mapping.get(str(predicted_index), "Unknown")
 
             # 绘制置信度图
@@ -171,4 +173,3 @@ class CNN(BaseModel):
         except Exception as e:
             print(f"预测时出错: {e}")
             return {'error': str(e)}
-

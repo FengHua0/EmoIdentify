@@ -57,7 +57,7 @@ def predict():
             return jsonify({'error': 'Invalid audio file format. Please upload wav, mp3, or webm files.'}), 400
 
         # 预处理
-        wav_bytes = preprocess_audio(wav_bytes)
+        wav_bytes = preprocess_audio(y)
 
         # 特征提取和可视化
         spectrogram, _ = spectrogram_base64(wav_bytes)

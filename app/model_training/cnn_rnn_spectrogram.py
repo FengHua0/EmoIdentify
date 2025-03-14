@@ -30,7 +30,7 @@ def load_datasets(data_folder, img_size=(224, 224), batch_size=64):
     transform = transforms.Compose([
         transforms.Resize(img_size),
         transforms.ToTensor(),
-        # 如果是三通道图像，可使用 ImageNet 上常用的标准化；若是单通道，可自行调整
+        # 三通道图像，使用 ImageNet 上常用的标准化
         transforms.Normalize([0.485, 0.456, 0.406],
                              [0.229, 0.224, 0.225])
     ])
