@@ -8,10 +8,10 @@ from torchvision import transforms
 from io import BytesIO
 import base64
 import matplotlib.pyplot as plt
-from app.predict.Base_model import BaseModel
-from app.predict.model_factory import register_model
-from app.visible.spectrogram import spectrogram_base64
-from app.model_training.cnn_rnn_spectrogram import CNN_RNN
+from .Base_model import BaseModel
+from .factory_registry import register_model
+from ..visible.spectrogram import spectrogram_base64
+from ..model_training.cnn_rnn_spectrogram import CNN_RNN
 
 @register_model('cnn')
 class CNN(BaseModel):

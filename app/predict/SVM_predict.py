@@ -8,8 +8,7 @@ import base64
 
 from app.file_process.feature_extraction_1 import one_features_extract
 from app.predict.Base_model import BaseModel
-from app.predict.model_factory import register_model
-
+from app.predict.factory_registry import register_model
 
 @register_model('svm')
 class SVM(BaseModel):

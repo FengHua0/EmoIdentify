@@ -4,7 +4,7 @@ from app.file_process.feature_extraction_2 import two_features_extract
 from app.model_training.RNN_two_training import EmotionClassifier
 import joblib
 from app.predict.Base_model import BaseModel
-from app.predict.model_factory import register_model
+from app.predict.factory_registry import register_model
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64

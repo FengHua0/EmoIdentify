@@ -1,11 +1,7 @@
-model_registry = {}
-
-def register_model(model_type):
-    def wrapper(cls):
-        model_registry[model_type.lower()] = cls
-        return cls
-    return wrapper
-
+from .factory_registry import model_registry
+from app.predict.SVM_predict import SVM
+from app.predict.RNN_predict import RNN
+from app.predict.CNN_RNN_predict import CNN
 
 def model_factory(model_type, processed_audio, sr):
 

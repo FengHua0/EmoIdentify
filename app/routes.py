@@ -4,13 +4,9 @@ from flask import Flask, request, jsonify, render_template
 from pydub import AudioSegment
 import librosa
 from app.file_process.data_processing import preprocess_audio
-from app.predict.model_factory import model_factory
+from app.predict import model_factory
 from app.visible.spectrogram import spectrogram_base64
 from app.visible.waveform import waveform_base64
-
-from app.predict.svm_predict import SVM
-from app.predict.RNN_predict import RNN
-from app.predict.CNN_RNN_predict import CNN
 
 app = Flask(__name__)
 
