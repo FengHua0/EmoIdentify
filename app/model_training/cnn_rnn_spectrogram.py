@@ -86,8 +86,8 @@ class CNN_RNN(nn.Module):
             nn.MaxPool2d(2)  # [B, 64, 28, 28]
         )
 
-        # 我们将输出的 [B, 64, 28, 28] 视作 (B, C, H, W)
-        # 假设 W = 时间维度，H = 频率维度
+        # 输出的 [B, 64, 28, 28] 视作 (B, C, H, W)
+        # W = 时间维度，H = 频率维度
         # 在 forward 中，会将 [B, 64, 28, 28] reshape 成 [B, 28, 64*28]，再输入 LSTM
 
         # ------------ LSTM ------------
@@ -129,7 +129,6 @@ class CNN_RNN(nn.Module):
         energy = self.attention_fc(lstm_output)  # [B, T, 1]
         energy = energy.squeeze(-1)  # [B, T]
 
-        # **修复错误**: 确保 `F.softmax()` 可用
         att_weights = F.softmax(energy, dim=1)  # [B, T]
 
         # 加权求和得到 context
