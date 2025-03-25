@@ -19,3 +19,14 @@ Train Loss=0.4575, Train Acc=0.8397 | Val Loss=0.7206, Val Acc=0.7845
 Train Loss=0.4008, Train Acc=0.8640 | Val Loss=0.6572, Val Acc=0.8089
 Train Loss=0.3159, Train Acc=0.8969 | Val Loss=0.6329, Val Acc=0.8236
 Train Loss=0.2665, Train Acc=0.9162 | Val Loss=0.5386, Val Acc=0.8614
+
+Train Loss=0.2088, Train Acc=0.9363 | Val Loss=0.6025, Val Acc=0.8595
+Train Loss=0.2087, Train Acc=0.9340 | Val Loss=0.5981, Val Acc=0.8678
+Train Loss=0.1281, Train Acc=0.9672 | Val Loss=0.6216, Val Acc=0.8680
+Train Loss=0.1242, Train Acc=0.9657 | Val Loss=0.6151, Val Acc=0.8780
+Train Loss=0.1064, Train Acc=0.9716 | Val Loss=1.0804, Val Acc=0.7501
+Train Loss=0.1007, Train Acc=0.9730 | Val Loss=0.5160, Val Acc=0.8911
+Train Loss=0.0664, Train Acc=0.9852 | Val Loss=0.5944, Val Acc=0.8823
+Train Loss=0.0915, Train Acc=0.9742 | Val Loss=0.6320, Val Acc=0.8832
+Train Loss=0.0805, Train Acc=0.9768 | Val Loss=0.5981, Val Acc=0.8794
+Train Loss=0.1260, Train Acc=0.9586 | Val Loss=0.8327, Val Acc=0.8222

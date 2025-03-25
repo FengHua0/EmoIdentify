@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
 from torch.utils.data import Dataset, DataLoader
 import joblib  # 用于保存和加载 LabelEncoder
@@ -37,7 +37,7 @@ class EmotionClassifier(nn.Module):
 
     def forward(self, x, lengths):
         # 使用 pack_padded_sequence 处理变长序列
-        packed_input = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
+        packed_input = pack_padded_sequence(x, lengths.cpu(), batch_first=True, enforce_sorted=False)
         packed_output, (hn, _) = self.rnn(packed_input)
         out = self.fc(hn[-1])  # 使用最后时间步的隐藏状态进行分类
         return out
@@ -68,7 +68,7 @@ def load_and_group_features(data_folder, file_name):
     labels = label_encoder.fit_transform(labels)
 
     # 保存 LabelEncoder 到文件
-    folder_name = os.path.basename(input_folder.rstrip("/"))  # 获取 input_folder 的最后一个文件夹名
+    folder_name = os.path.basename(data_folder.rstrip("/"))  # 获取 input_folder 的最后一个文件夹名
     encoder_path = os.path.join("../models/label_encoder", f"{folder_name}_label_encoder.joblib")
     joblib.dump(label_encoder, encoder_path)
     print(f"LabelEncoder 已保存到: {encoder_path}")
@@ -80,6 +80,10 @@ def load_and_group_features(data_folder, file_name):
         group_features = group.drop(columns=["file_name", "category"]).values
         grouped_features.append(group_features)
         grouped_labels.append(labels[group.index[0]])  # 同一文件的标签相同
+
+    # 对特征进行标准化
+    scaler = StandardScaler()
+    grouped_features = [scaler.fit_transform(group) for group in grouped_features]
 
     return grouped_features, grouped_labels, label_encoder
 
@@ -99,7 +103,7 @@ def collate_fn(batch):
     labels = torch.tensor([item[1] for item in batch], dtype=torch.long)
 
     # 获取每个序列的长度
-    lengths = torch.tensor([len(f) for f in features], dtype=torch.long)
+    lengths = torch.tensor([len(f) for f in features], dtype=torch.long).to(features[0].device)  # 确保 lengths 与 features 在同一设备上
 
     # 使用 pad_sequence 对特征进行填充
     padded_features = pad_sequence(features, batch_first=True)  # (batch_size, max_seq_len, num_features)
@@ -113,10 +117,13 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
     model.to(device)
     best_val_acc = 0.0
 
-    # 加载预训练模型
+    # 如果没有预训练模型路径，则直接从头训练
     if pretrained_model_path:
-        print(f"加载预训练模型: {pretrained_model_path}")
-        model.load_state_dict(torch.load(pretrained_model_path))
+        if os.path.exists(pretrained_model_path):
+            print(f"加载预训练模型: {pretrained_model_path}")
+            model.load_state_dict(torch.load(pretrained_model_path))
+        else:
+            print(f"预训练模型文件 {pretrained_model_path} 不存在，从头开始训练")
 
     for epoch in range(epochs):
         model.train()
@@ -125,7 +132,7 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
             features, labels, lengths = features.to(device), labels.to(device), lengths.to(device)
 
             optimizer.zero_grad()
-            outputs = model(features, lengths)
+            outputs = model(features, lengths.to(features.device))
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -155,12 +162,11 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
         log_file = "../model_visible/rnn.txt"
         log_results(log_file, train_loss, train_acc, val_loss, val_acc)
 
-        # # 保存最优模型
-        # if val_acc > best_val_acc:
-        #     best_val_acc = val_acc
-        #     print(f"保存最优模型 (Epoch {epoch + 1}) 到: {model_output}")
-        #     torch.save(model.state_dict(), model_output)
-
+        # 保存最优模型
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            print(f"保存最优模型 (Epoch {epoch + 1}) 到: {model_output}")
+            torch.save(model.state_dict(), model_output)
 
 
 # 主程序
@@ -168,7 +174,7 @@ if __name__ == "__main__":
     # 用户提供的路径
     input_folder = "../features/feature_extraction_2/CREMA-D"  # 包含 train.csv, val.csv, test.csv 的文件夹
     model_output = "../models/rnn_2.pth"  # 模型保存路径
-    pretrained_model_path = "../models/premodel/rnn_2.pth"  # 预训练模型文件
+    pretrained_model_path = "../models/rnn_2.pth"  # 预训练模型文件
 
     # 加载和分组数据
     train_features, train_labels, label_encoder = load_and_group_features(input_folder, "train.csv")
@@ -183,15 +189,15 @@ if __name__ == "__main__":
 
     # 模型定义
     input_size = train_features[0].shape[1]  # 每帧的特征数
-    hidden_size = 128
+    hidden_size = 256  # 增大隐藏层大小
     num_classes = len(label_encoder.classes_)
     model = EmotionClassifier(input_size, hidden_size, num_classes)
 
     # 损失函数和优化器
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)  # 使用较小的学习率
 
     # 训练模型
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=1,
+    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=10,
                 pretrained_model_path=pretrained_model_path)

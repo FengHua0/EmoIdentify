@@ -1,0 +1,27 @@
+验证集评估结果：
+              precision    recall  f1-score   support
+
+      ANGERY       0.56      0.68      0.62       247
+DISAPPOINTED       0.38      0.40      0.39       249
+       FEARE       0.25      0.17      0.20       244
+       HAPPY       0.39      0.29      0.33       237
+     NEUTRAL       0.40      0.30      0.35       207
+         SAD       0.41      0.64      0.50       239
+
+    accuracy                           0.42      1423
+   macro avg       0.40      0.41      0.40      1423
+weighted avg       0.40      0.42      0.40      1423
+
+测试集评估结果：
+              precision    recall  f1-score   support
+
+      ANGERY       0.60      0.73      0.66       124
+DISAPPOINTED       0.35      0.30      0.32       126
+       FEARE       0.22      0.17      0.19       125
+       HAPPY       0.41      0.30      0.34       125
+     NEUTRAL       0.42      0.32      0.36       109
+         SAD       0.40      0.66      0.50       126
+
+    accuracy                           0.41       735
+   macro avg       0.40      0.41      0.40       735
+weighted avg       0.40      0.41      0.40       735
