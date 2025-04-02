@@ -184,7 +184,7 @@ def log_results(log_file,train_loss, train_acc, val_loss, val_acc):
                 f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
 
 # 模型训练函数
-def train_model(model, train_loader, val_loader, device, epochs=10, lr=1e-3, resume_training=True):
+def train_model(model, train_loader, val_loader, device, log_file, epochs=10, lr=1e-3, resume_training=True):
     """
     训练模型并在验证集上进行评估
 
@@ -267,7 +267,6 @@ def train_model(model, train_loader, val_loader, device, epochs=10, lr=1e-3, res
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
         # 记录日志
-        log_file = "../model_visible/cnn_rnn.txt"
         log_results(log_file, train_loss, train_acc, val_loss, val_acc)
 
         print(f"保存模型 (Epoch {epoch + 1}) 到: {model_output}")
@@ -289,10 +288,12 @@ if __name__ == "__main__":
     # 配置路径
     data_folder = "../features/mel_spectrogram/CREMA-D"
     model_output = "../models/cnn_rnn_spectrogram_model.pth"
+    log_file = "../model_visible/cnn_rnn.txt"
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_folder = os.path.join(current_dir, data_folder)
     model_output = os.path.join(current_dir, model_output)
+    log_file = os.path.join(current_dir, log_file)
 
     # 训练参数
     batch_size = 64
@@ -316,5 +317,5 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)  # 添加 L2 正则化
 
     # 训练模型
-    train_model(model, train_loader, val_loader, device, epochs=epochs, lr=lr, resume_training=True)
+    train_model(model, train_loader, val_loader, device, log_file, epochs=epochs, lr=lr, resume_training=True)
 

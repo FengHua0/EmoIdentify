@@ -59,7 +59,7 @@ def load_features(csv_file):
     return X.values, y.values
 
 # 模型训练函数
-def train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=20):
+def train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, log_file, epochs=20):
     model.to(device)
     best_val_acc = 0.0
     for epoch in range(epochs):
@@ -102,7 +102,6 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
         # 记录日志
-        log_file = "../model_visible/mlp_one.txt"
         log_results(log_file, train_loss, train_acc, val_loss, val_acc)
 
 # 测试模型函数
@@ -132,12 +131,14 @@ if __name__ == "__main__":
     val_file = "../features/One_dimensional/val_features.csv"
     test_file = "../features/One_dimensional/test_features.csv"
     model_output = "../models/mlp_model.pth"  # 保存模型的路径
+    log_file = "../model_visible/mlp_one.txt"
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     train_file = os.path.join(current_dir, train_file)
     val_file = os.path.join(current_dir, val_file)
     test_file = os.path.join(current_dir, test_file)
     model_output = os.path.join(current_dir, model_output)
+    log_file = os.path.join(current_dir, log_file)
 
     # 加载数据
     X_train, y_train = load_features(train_file)
@@ -175,7 +176,7 @@ if __name__ == "__main__":
 
     # 训练模型
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=20)
+    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, log_file, epochs=20)
 
     # 测试模型
     test_model(model, test_loader, device, label_encoder, model_output)

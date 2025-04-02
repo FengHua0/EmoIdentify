@@ -127,7 +127,7 @@ def collate_fn(batch):
 
 
 # 模型训练函数
-def train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=1,
+def train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, log_file, epochs=1,
                 pretrained_model_path=None):
     model.to(device)
     best_val_acc = 0.0
@@ -174,7 +174,6 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
         print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, "
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
         # 记录日志
-        log_file = "../model_visible/rnn.txt"
         log_results(log_file, train_loss, train_acc, val_loss, val_acc)
 
         # 保存最优模型
@@ -190,11 +189,13 @@ if __name__ == "__main__":
     input_folder = "../features/feature_extraction_2/CREMA-D"  # 包含 train.csv, val.csv, test.csv 的文件夹
     model_output = "../models/rnn_2.pth"  # 模型保存路径
     pretrained_model_path = "../models/rnn_2.pth"  # 预训练模型文件
+    log_file = "../model_visible/rnn.txt"
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     input_folder = os.path.join(current_dir, input_folder)
     model_output = os.path.join(current_dir, model_output)
     pretrained_model_path = os.path.join(current_dir, pretrained_model_path)
+    log_file = os.path.join(current_dir, log_file)
 
     # 加载和分组数据
     train_features, train_labels, label_encoder = load_and_group_features(input_folder, "train.csv")
@@ -219,5 +220,5 @@ if __name__ == "__main__":
 
     # 训练模型
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, epochs=10,
+    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, log_file, epochs=10,
                 pretrained_model_path=pretrained_model_path)
