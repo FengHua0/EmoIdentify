@@ -8,7 +8,6 @@ import torchvision.datasets as datasets
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import torch.nn.functional as F
-import sys
 
 # 数据加载函数
 def load_datasets(data_folder, img_size=(224, 224), batch_size=64):
@@ -290,6 +289,10 @@ if __name__ == "__main__":
     # 配置路径
     data_folder = "../features/mel_spectrogram/CREMA-D"
     model_output = "../models/cnn_rnn_spectrogram_model.pth"
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    data_folder = os.path.join(current_dir, data_folder)
+    model_output = os.path.join(current_dir, model_output)
 
     # 训练参数
     batch_size = 64

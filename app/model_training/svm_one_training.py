@@ -74,6 +74,12 @@ if __name__ == "__main__":
     test_file = "../features/feature_extraction_1/CREMA-D/test.csv"  # 测试集特征文件路径
     model_output = "../models/svm_model.joblib"  # 模型保存路径
 
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    train_file = os.path.join(current_dir, train_file)
+    val_file = os.path.join(current_dir, val_file)
+    test_file = os.path.join(current_dir, test_file)
+    model_output = os.path.join(current_dir, model_output)
+
     # 创建保存模型的文件夹
     os.makedirs(os.path.dirname(model_output), exist_ok=True)
 

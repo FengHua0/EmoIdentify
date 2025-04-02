@@ -8,10 +8,11 @@ from torchvision import transforms
 from io import BytesIO
 import base64
 import matplotlib.pyplot as plt
-from .Base_model import BaseModel
-from .factory_registry import register_model
-from ..visible.spectrogram import spectrogram_base64
-from ..model_training.cnn_rnn_spectrogram import CNN_RNN
+
+from app.predict.Base_model import BaseModel
+from app.predict.factory_registry import register_model
+from app.visible.spectrogram import spectrogram_base64
+from app.model_training.cnn_rnn_spectrogram import CNN_RNN
 
 @register_model('cnn')
 class CNN(BaseModel):
@@ -24,6 +25,11 @@ class CNN(BaseModel):
         super().__init__(processed_audio, sr)
         self.MODEL_PATH = "models/cnn_rnn_spectrogram_model.pth"  # 模型路径
         self.LABEL_ENCODER_PATH = "models/label_encoder/CREMA-D_CNN.json"  # 类别映射路径
+
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.MODEL_PATH = os.path.join(current_dir, self.MODEL_PATH)
+        self.LABEL_ENCODER_PATH = os.path.join(current_dir, self.LABEL_ENCODER_PATH)
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = None

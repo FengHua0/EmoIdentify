@@ -132,6 +132,6 @@
     <!-- Chart.js (如果需要绘制图表，可以保留) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- 引入外部 JavaScript 文件 -->
-    <script type="module" src="/static/js/main.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}" type="module"></script>
 </body>
 </html>

@@ -84,5 +84,11 @@ if __name__ == "__main__":
     test_file = "../features/One_dimensional/test_features.csv"
     model_output = "../models/lgbm_model.txt"  # 模型保存路径
 
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    train_file = os.path.join(current_dir, train_file)
+    val_file = os.path.join(current_dir, val_file)
+    test_file = os.path.join(current_dir, test_file)
+    model_output = os.path.join(current_dir, model_output)
+
     # 训练模型
     train_lightgbm(train_file, val_file, test_file, model_output)

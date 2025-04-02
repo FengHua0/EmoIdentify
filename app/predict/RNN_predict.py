@@ -1,13 +1,14 @@
 import torch
 from torch.nn.utils.rnn import pad_sequence
-from app.file_process.feature_extraction_2 import two_features_extract
-from app.model_training.RNN_two_training import EmotionClassifier
 import joblib
-from app.predict.Base_model import BaseModel
-from app.predict.factory_registry import register_model
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
+
+from app.predict.Base_model import BaseModel
+from app.predict.factory_registry import register_model
+from app.file_process.feature_extraction_2 import two_features_extract
+from app.model_training.RNN_two_training import EmotionClassifier
 
 @register_model('rnn')
 class RNN(BaseModel):
@@ -15,6 +16,11 @@ class RNN(BaseModel):
         super().__init__(processed_audio, sr)
         self.MODEL_PATH = "models/rnn_2.pth"
         self.ENCODER_PATH = "models/label_encoder/CREMA-D_label_encoder.joblib"
+
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.MODEL_PATH = os.path.join(current_dir, self.MODEL_PATH)
+        self.LABEL_ENCODER_PATH = os.path.join(current_dir, self.LABEL_ENCODER_PATH)
+        
         self.model = None
         self.label_encoder = None
         self.load_model()

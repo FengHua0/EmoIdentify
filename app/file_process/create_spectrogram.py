@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from app.visible.spectrogram import spectrogram_base64, save_spectrogram
 
 
@@ -64,4 +66,9 @@ def create_spectrogram(input_folder, output_folder, sr=16000):
 if __name__ == '__main__':
     spectrogram_file = '../features/mel_spectrogram'
     splited_data = '../../ProcessedDataSet/Split/CREMA-D'
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    spectrogram_file = os.path.join(current_dir, spectrogram_file)
+    splited_data = os.path.join(current_dir, splited_data)
+
     create_spectrogram(splited_data, spectrogram_file)

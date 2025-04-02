@@ -8,7 +8,22 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
 from torch.utils.data import Dataset, DataLoader
 import joblib  # 用于保存和加载 LabelEncoder
-from app.model_training.cnn_rnn_spectrogram import log_results
+import sys
+
+def log_results(log_file,train_loss, train_acc, val_loss, val_acc):
+    """
+    将每个 epoch 的训练结果记录到日志文件
+    Args:
+        log_file (str): 日志文件路径
+        epoch (int): 当前 epoch
+        train_loss (float): 训练损失
+        train_acc (float): 训练准确率
+        val_loss (float): 验证损失
+        val_acc (float): 验证准确率
+    """
+    with open(log_file, "a") as f:
+        f.write(f"Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f} | "
+                f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
 
 # 自定义数据集
 class EmotionDataset(Dataset):
@@ -175,6 +190,11 @@ if __name__ == "__main__":
     input_folder = "../features/feature_extraction_2/CREMA-D"  # 包含 train.csv, val.csv, test.csv 的文件夹
     model_output = "../models/rnn_2.pth"  # 模型保存路径
     pretrained_model_path = "../models/rnn_2.pth"  # 预训练模型文件
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    input_folder = os.path.join(current_dir, input_folder)
+    model_output = os.path.join(current_dir, model_output)
+    pretrained_model_path = os.path.join(current_dir, pretrained_model_path)
 
     # 加载和分组数据
     train_features, train_labels, label_encoder = load_and_group_features(input_folder, "train.csv")

@@ -15,6 +15,10 @@ class SVM(BaseModel):
     def __init__(self, processed_audio, sr):
         super().__init__(processed_audio, sr)
         self.MODEL_PATH = 'models/svm_model.joblib'
+        
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.MODEL_PATH = os.path.join(current_dir, self.MODEL_PATH)
+
         self.model = None
         self.scaler = None
         self.label_encoder = None
