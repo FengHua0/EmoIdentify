@@ -170,9 +170,10 @@ class NTXentLoss(nn.Module):
             emotion_speaker_mask = torch.eq(emotion_speaker_ids, emotion_speaker_ids.T).float().to(device)
             
             # 计算当前情感类别的对比损失
-            # 正样本：不同说话人但相同情感
-            # 负样本：相同说话人且相同情感
-            pos_mask = (1.0 - emotion_speaker_mask) * (1.0 - emotion_self_mask.float())
+            # 正样本：相同说话人且相同情感
+            # 负样本：不同说话人但相同情感
+            pos_mask = emotion_speaker_mask * (1.0 - emotion_self_mask.float())
+            neg_mask = (1.0 - emotion_speaker_mask) * (1.0 - emotion_self_mask.float())
             
             # 计算 logits
             logits = emotion_sim
@@ -268,12 +269,26 @@ def log_results(log_file,train_loss, train_acc, val_loss, val_acc):
         f.write(f"Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f} | "
                 f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
 
+def log_results(log_file, train_loss, train_acc, val_loss, val_acc):
+    """
+    将每个 epoch 的训练结果记录到日志文件
+    Args:
+        log_file (str): 日志文件路径
+        epoch (int): 当前 epoch
+        train_loss (float): 训练损失
+        train_acc (float): 训练准确率
+        val_loss (float): 验证损失
+        val_acc (float): 验证准确率
+    """
+    with open(log_file, "a") as f:
+        f.write(f"Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f} | "
+                f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
+
 # 模型训练函数（添加对比学习功能）
-def train_model(model, train_loader, val_loader, device, epochs=10, lr=1e-3, resume_training=True, pre_model=None,
-                model_output="../models/contrastive_training.pth"):
+def train_model(model, train_loader, val_loader, device, model_output, log_file, epochs=10, lr=1e-3, resume_training=True, pre_model=None):
     criterion = NTXentLoss(temperature=0.5)  # 对比损失函数
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)  # 每5个epoch衰减学习率
+    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)  # 每5个epoch衰减学习率
     model.to(device)
 
     # 恢复训练
@@ -325,9 +340,6 @@ def train_model(model, train_loader, val_loader, device, epochs=10, lr=1e-3, res
         train_loss = running_loss / len(train_loader.dataset)
         train_accuracy = correct_train / total_train
 
-        # 打印训练过程
-        print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.4f}")
-
         # ------------ 验证 ------------
         model.eval()
         val_running_loss = 0.0
@@ -360,10 +372,10 @@ def train_model(model, train_loader, val_loader, device, epochs=10, lr=1e-3, res
         val_accuracy = correct_val / total_val
 
         # 打印验证过程
-        print(f"Epoch [{epoch + 1}/{epochs}] Summary: Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.4f}")
-
-        # 更新学习率
-        scheduler.step()
+        print(f"Epoch [{epoch + 1}/{epochs}]: Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.4f}")
+        log_results(log_file, train_loss, train_accuracy, val_loss, val_accuracy)
+        # # 更新学习率
+        # scheduler.step()
 
         # 保存模型
         os.makedirs(model_output, exist_ok=True)
@@ -378,17 +390,19 @@ if __name__ == "__main__":
 
     data_folder = "../features/mel_spectrogram/CREMA-D"
     pre_model = "../models/Contrastive_model.pth"
-    model_output = "..\models\Contrastive"
+    model_output = "../models/Contrastive"
+    log_file = "../model_visible/contrastive_training.txt"
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_folder = os.path.join(current_dir, data_folder)
     pre_model = os.path.join(current_dir, pre_model)
     model_output = os.path.join(current_dir, model_output)
+    log_file = os.path.join(current_dir, log_file)
 
     batch_size = 64
     num_classes = 6
     epochs = 50
-    lr = 1e-3
+    lr = 1e-4
 
     train_loader, val_loader, test_loader, class_indices, speaker_ids = load_datasets(
         data_folder=data_folder,
@@ -397,4 +411,4 @@ if __name__ == "__main__":
     )
 
     model = CNN_RNN(num_classes=len(class_indices)).to(device)
-    train_model(model, train_loader, val_loader, device, epochs=epochs, lr=lr, resume_training=True)
+    train_model(model, train_loader, val_loader, device, model_output, log_file, epochs=epochs, lr=lr, resume_training=True)
