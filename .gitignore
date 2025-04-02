@@ -8,9 +8,13 @@
 **/*.csv
 **/*.png
 **/*.PNG
+**/*.jpg
+**/*.JPG
 **/*.h5
 **/*.keras
 **/*.pth
+**/*.joblib
+**/*.json
 
 # Python编译文件
 __pycache__/
