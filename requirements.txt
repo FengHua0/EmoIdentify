@@ -12,3 +12,6 @@ joblib~=1.4.2
 lightgbm~=4.5.0
 tensorflow~=2.18.0
 torchvision~=0.20
+pynndescent~=0.5.13 
+umap-learn~=0.5.7
+umap~=0.1.1
