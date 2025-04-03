@@ -120,75 +120,72 @@ class NTXentLoss(nn.Module):
         super(NTXentLoss, self).__init__()
         self.temperature = temperature
         self.base_temperature = base_temperature
+        self.eps = 1e-8
 
     def forward(self, features, labels, speaker_ids):
         batch_size = features.shape[0]
         device = features.device
 
-        # 正负样本对的标签：是否属于同一类
-        labels = labels.contiguous().view(-1, 1)
-        speaker_ids = speaker_ids.contiguous().view(-1, 1)
+        # 特征归一化
+        features = nn.functional.normalize(features, dim=1)
         
-        # 创建情感类别掩码：相同情感类别为1，不同情感类别为0
+        # 计算相似度矩阵
+        sim_matrix = torch.matmul(features, features.T) / self.temperature
+        
+        # 创建情感类别掩码
+        labels = labels.contiguous().view(-1, 1)
         emotion_mask = torch.eq(labels, labels.T).float().to(device)
         
-        # 创建说话人掩码：相同说话人为1，不同说话人为0
+        # 创建说话人掩码
+        speaker_ids = speaker_ids.contiguous().view(-1, 1)
         speaker_mask = torch.eq(speaker_ids, speaker_ids.T).float().to(device)
         
-        # 计算特征相似度矩阵
-        features = nn.functional.normalize(features, dim=1)  # 特征归一化
-        similarity_matrix = torch.matmul(features, features.T)  # [B, B]
-        similarity_matrix = similarity_matrix / self.temperature
-        
-        # 对角线元素设为极小值，避免自身对比
+        # 对角线掩码
         mask_self = torch.eye(batch_size, dtype=torch.bool).to(device)
-        similarity_matrix.masked_fill_(mask_self, -float('inf'))
         
-        # 只在相同情感类别内进行对比学习
-        # 对于每个情感类别，创建一个掩码
+        # 计算损失
         loss = 0.0
-        num_classes = 0
+        num_valid_classes = 0
         
         for emotion_label in torch.unique(labels):
-            # 找出当前情感类别的样本索引
+            # 获取当前类别的样本索引
             emotion_indices = (labels == emotion_label).squeeze().nonzero(as_tuple=True)[0]
             if len(emotion_indices) <= 1:
-                continue  # 跳过只有一个样本的情感类别
+                continue
                 
-            num_classes += 1
+            num_valid_classes += 1
+            
+            # 提取当前类别的特征和说话人ID
             emotion_features = features[emotion_indices]
             emotion_speaker_ids = speaker_ids[emotion_indices]
             
-            # 计算当前情感类别内的相似度矩阵
+            # 计算当前类别的相似度矩阵
             emotion_sim = torch.matmul(emotion_features, emotion_features.T) / self.temperature
             
-            # 对角线元素设为极小值
-            emotion_self_mask = torch.eye(len(emotion_indices), dtype=torch.bool).to(device)
-            emotion_sim.masked_fill_(emotion_self_mask, -float('inf'))
-            
-            # 创建说话人掩码（同一情感类别内）
+            # 创建说话人掩码
             emotion_speaker_mask = torch.eq(emotion_speaker_ids, emotion_speaker_ids.T).float().to(device)
             
-            # 计算当前情感类别的对比损失
-            # 正样本：相同说话人且相同情感
-            # 负样本：不同说话人但相同情感
-            pos_mask = emotion_speaker_mask * (1.0 - emotion_self_mask.float())
-            neg_mask = (1.0 - emotion_speaker_mask) * (1.0 - emotion_self_mask.float())
+            # 正样本对：相同说话人
+            pos_mask = emotion_speaker_mask * (~torch.eye(len(emotion_indices), dtype=torch.bool, device=device)).float()
             
-            # 计算 logits
-            logits = emotion_sim
+            # 负样本对：不同说话人
+            neg_mask = (~emotion_speaker_mask.bool()).float() * (~torch.eye(len(emotion_indices), dtype=torch.bool, device=device)).float()
             
-            # 计算正样本对的损失
-            if pos_mask.sum() > 0:
-                pos_logits = logits * pos_mask
-                pos_logits = pos_logits.sum(dim=1) / (pos_mask.sum(dim=1) + 1e-8)
-                emotion_loss = -pos_logits.mean()
-                loss += emotion_loss
-        
-        # 平均所有情感类别的损失
-        if num_classes > 0:
-            loss = loss / num_classes
-        
+            # 计算正样本相似度
+            pos_sim = (emotion_sim * pos_mask).sum(dim=1) / (pos_mask.sum(dim=1) + self.eps)
+            
+            # 计算负样本相似度
+            neg_sim = torch.logsumexp(emotion_sim * neg_mask, dim=1)
+            
+            # 计算当前类别的损失
+            class_loss = - (pos_sim - neg_sim).mean()
+            loss += class_loss
+            
+        if num_valid_classes > 0:
+            loss = loss / num_valid_classes * self.base_temperature
+        else:
+            loss = torch.tensor(0.0, device=device)
+            
         return loss
 
 # 自定义 CNN-RNN 模型
@@ -288,7 +285,6 @@ def log_results(log_file, train_loss, train_acc, val_loss, val_acc):
 def train_model(model, train_loader, val_loader, device, model_output, log_file, epochs=10, lr=1e-3, resume_training=True, pre_model=None):
     criterion = NTXentLoss(temperature=0.5)  # 对比损失函数
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)  # 每5个epoch衰减学习率
     model.to(device)
 
     # 恢复训练
@@ -302,7 +298,6 @@ def train_model(model, train_loader, val_loader, device, model_output, log_file,
     print("开始训练模型...")
 
     for epoch in range(epochs):
-        # ------------ 训练 ------------
         model.train()
         running_loss = 0.0
         correct_train = 0
@@ -317,14 +312,9 @@ def train_model(model, train_loader, val_loader, device, model_output, log_file,
 
             # 获取模型输出和特征
             outputs, features = model(images)
-
-            # 计算对比损失
+                
             contrastive_loss = criterion(features, labels, speaker_ids)
-
-            # 计算分类损失
             classification_loss = nn.CrossEntropyLoss()(outputs, labels)
-
-            # 总损失 = 分类损失 + 对比损失
             loss = classification_loss + contrastive_loss
 
             loss.backward()
