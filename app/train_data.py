@@ -71,5 +71,5 @@ def plot_training_log(log_file):
 
 
 if __name__ == "__main__":
-    log_file = "model_visible/rnn.txt"  # 指定训练日志路径
+    log_file = "model_visible/contrastive_training.txt"  # 指定训练日志路径
     plot_training_log(log_file)

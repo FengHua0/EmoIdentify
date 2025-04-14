@@ -24,7 +24,7 @@ class CNN(BaseModel):
         """
         super().__init__(processed_audio, sr)
         self.MODEL_PATH = "models/cnn_rnn_spectrogram_model.pth"  # 模型路径
-        self.LABEL_ENCODER_PATH = "models/label_encoder/CREMA-D_CNN.json"  # 类别映射路径
+        self.LABEL_ENCODER_PATH = "models/label_encoder/CREMA-D_CNN_class.json"  # 类别映射路径
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.MODEL_PATH = os.path.join(current_dir, self.MODEL_PATH)
@@ -154,7 +154,8 @@ class CNN(BaseModel):
 
             # 模型推理
             with torch.no_grad():
-                outputs, _ = self.model(img_tensor)  # 正确解包，避免 tuple 误用 .softmax()
+                # 模型返回 (outputs, context) 元组
+                outputs, _ = self.model(img_tensor)  # 只取分类输出
                 predictions = F.softmax(outputs, dim=1)  # 计算 softmax 以获得概率分布
                 predicted_index = torch.argmax(predictions, dim=1).item()  # 获取最大概率的类别索引
 

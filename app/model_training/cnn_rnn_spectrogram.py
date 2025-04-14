@@ -1,15 +1,49 @@
 import os
 import json
 import torch
+import sys
 import torch.nn as nn
 import torch.optim as optim
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
+from torchvision import transforms, datasets
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
+from PIL import Image
 import torch.nn.functional as F
 
-# 数据加载函数
+class CustomDataset(Dataset):
+    def __init__(self, data_folder, split='train', img_size=(224, 224), transform=None):
+        """
+        自定义数据集，加载图像并返回图像、情感标签和说话人ID
+        """
+        self.data_folder = os.path.join(data_folder, split)
+        self.transform = transform
+        self.samples = []
+        self.speaker_ids = {}
+
+        # 遍历目录，加载每个文件并提取标签
+        for label, emotion_folder in enumerate(os.listdir(self.data_folder)):
+            emotion_path = os.path.join(self.data_folder, emotion_folder)
+            if os.path.isdir(emotion_path):
+                for file_name in os.listdir(emotion_path):
+                    if file_name.endswith(".png"):
+                        # 提取说话人ID (假设文件名中的第一部分是说话人ID)
+                        speaker_id = file_name.split('_')[0]
+                        self.samples.append((os.path.join(emotion_path, file_name), label, speaker_id))
+                        if speaker_id not in self.speaker_ids:
+                            self.speaker_ids[speaker_id] = len(self.speaker_ids)
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        img_path, emotion_label, speaker_id = self.samples[idx]
+        image = Image.open(img_path).convert('RGB')
+        if self.transform:
+            image = self.transform(image)
+        speaker_id = self.speaker_ids[speaker_id]  # 转换为数字索引
+        return image, emotion_label, speaker_id
+
+# 修改后的数据加载函数
 def load_datasets(data_folder, img_size=(224, 224), batch_size=64):
     """
     加载数据集并返回 DataLoader
@@ -22,21 +56,21 @@ def load_datasets(data_folder, img_size=(224, 224), batch_size=64):
     Returns:
         train_loader, val_loader, test_loader (DataLoader): 训练、验证、测试集的数据加载器
         class_indices (dict): 类别索引映射
+        speaker_indices (dict): 说话人索引映射
     """
     print(f"加载数据集: {data_folder}")
 
-    # 常见的图像预处理操作，可以根据需要自行修改
     transform = transforms.Compose([
         transforms.Resize(img_size),
         transforms.ToTensor(),
-        # 三通道图像，使用 ImageNet 上常用的标准化
         transforms.Normalize([0.485, 0.456, 0.406],
-                             [0.229, 0.224, 0.225])
+                           [0.229, 0.224, 0.225])
     ])
 
-    train_dataset = datasets.ImageFolder(os.path.join(data_folder, "train"), transform=transform)
-    val_dataset = datasets.ImageFolder(os.path.join(data_folder, "val"), transform=transform)
-    test_dataset = datasets.ImageFolder(os.path.join(data_folder, "test"), transform=transform)
+    # 使用 CustomDataset 加载数据集
+    train_dataset = CustomDataset(data_folder, split="train", img_size=img_size, transform=transform)
+    val_dataset = CustomDataset(data_folder, split="val", img_size=img_size, transform=transform)
+    test_dataset = CustomDataset(data_folder, split="test", img_size=img_size, transform=transform)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
@@ -44,18 +78,20 @@ def load_datasets(data_folder, img_size=(224, 224), batch_size=64):
 
     print(f"数据加载完成: 训练集 {len(train_dataset)} 样本, 验证集 {len(val_dataset)} 样本, 测试集 {len(test_dataset)} 样本")
 
-    # 获取类别索引并保存
-    class_indices = train_dataset.class_to_idx
-    index_to_class = {v: k for k, v in class_indices.items()}
-    save_path = "../models/label_encoder/CREMA-D_CNN.json"
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    with open(save_path, "w") as f:
-        json.dump(index_to_class, f)
-    print(f"类别标签映射已保存: {save_path}")
+    # 获取类别索引
+    class_indices = {i: emotion for i, emotion in enumerate(os.listdir(os.path.join(data_folder, "train")))}
+    speaker_indices = train_dataset.speaker_ids
 
-    return train_loader, val_loader, test_loader, class_indices
+    # 保存类别映射
+    class_save_path = "../models/label_encoder/CREMA-D_CNN_class.json"
+    os.makedirs(os.path.dirname(class_save_path), exist_ok=True)
+    with open(class_save_path, "w") as f:
+        json.dump(class_indices, f)
+    print(f"类别标签映射已保存: {class_save_path}")
 
-# 自定义 CNN-RNN 模型
+    return train_loader, val_loader, test_loader, class_indices, speaker_indices
+
+# 修改 CNN_RNN 类的 forward 方法以返回特征
 class CNN_RNN(nn.Module):
     def __init__(self, num_classes=10, hidden_dim=128, num_layers=1, bidirectional=False):
         """
@@ -166,7 +202,8 @@ class CNN_RNN(nn.Module):
         # ------------ 分类 ------------
         out = self.fc(context)  # [B, num_classes]
 
-        return out, att_weights
+        # 返回分类结果和特征向量
+        return out, context  # context 是注意力加权后的特征向量
 
 def log_results(log_file,train_loss, train_acc, val_loss, val_acc):
     """
@@ -184,17 +221,9 @@ def log_results(log_file,train_loss, train_acc, val_loss, val_acc):
                 f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
 
 # 模型训练函数
-def train_model(model, train_loader, val_loader, device, log_file, epochs=10, lr=1e-3, resume_training=True):
+def train_model(model, train_loader, val_loader, device, log_file, model_dir, epochs=10, lr=1e-3, resume_training=True):
     """
     训练模型并在验证集上进行评估
-
-    Args:
-        model (nn.Module): 待训练的模型
-        train_loader (DataLoader): 训练集数据加载器
-        val_loader (DataLoader): 验证集数据加载器
-        device (torch.device): 训练设备 (CPU 或 GPU)
-        epochs (int): 训练轮数
-        lr (float): 学习率
     """
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -202,10 +231,14 @@ def train_model(model, train_loader, val_loader, device, log_file, epochs=10, lr
     best_val_acc = 0.0
     best_val_loss = float("inf")
 
+    model_path = "../models/cnn_rnn_spectrogram_model.pth"
+
     # 继续训练
-    if resume_training and os.path.exists(model_output):
-        print(f"加载已有模型: {model_output}")
-        model.load_state_dict(torch.load(model_output))
+    if resume_training and os.path.exists(model_path):
+        print(f"加载已有模型: {model_path}")
+        model.load_state_dict(torch.load(model_path))
+
+    os.makedirs(model_dir, exist_ok=True)
 
     print("开始训练模型...")
 
@@ -216,12 +249,12 @@ def train_model(model, train_loader, val_loader, device, log_file, epochs=10, lr
         running_corrects = 0
         total_samples = 0  # 记录已处理的样本数
 
-        for batch_idx, (images, labels) in enumerate(train_loader):
+        for batch_idx, (images, labels, _) in enumerate(train_loader):  # 修改这里，添加第三个返回值
             images = images.to(device)
             labels = labels.to(device)
 
             optimizer.zero_grad()
-            outputs, att_weights = model(images)
+            outputs, _ = model(images)  # 这里我们只需要分类输出
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -249,7 +282,7 @@ def train_model(model, train_loader, val_loader, device, log_file, epochs=10, lr
         val_running_corrects = 0
 
         with torch.no_grad():
-            for images, labels in val_loader:
+            for images, labels, _ in val_loader:  # 同样修改验证集的遍历
                 images = images.to(device)
                 labels = labels.to(device)
                 outputs, _ = model(images)
@@ -269,8 +302,9 @@ def train_model(model, train_loader, val_loader, device, log_file, epochs=10, lr
         # 记录日志
         log_results(log_file, train_loss, train_acc, val_loss, val_acc)
 
-        print(f"保存模型 (Epoch {epoch + 1}) 到: {model_output}")
-        torch.save(model.state_dict(), model_output)
+        epoch_model_path = os.path.join(model_dir, f"cnn_rnn_spectrogram_model_{epoch+1}.pth")
+        print(f"保存模型 (Epoch {epoch + 1}) 到: {epoch_model_path}")
+        torch.save(model.state_dict(), epoch_model_path)
 
         # # 保存最优模型
         # if val_acc > best_val_acc and val_loss < best_val_loss:
@@ -287,23 +321,23 @@ if __name__ == "__main__":
     print(f"使用设备: {device}")
     # 配置路径
     data_folder = "../features/mel_spectrogram/CREMA-D"
-    model_output = "../models/cnn_rnn_spectrogram_model.pth"
+    model_dir = "../models/cnn_rnn"
     log_file = "../model_visible/cnn_rnn.txt"
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_folder = os.path.join(current_dir, data_folder)
-    model_output = os.path.join(current_dir, model_output)
+    model_dir = os.path.join(current_dir, model_dir)
     log_file = os.path.join(current_dir, log_file)
 
     # 训练参数
     batch_size = 64
     num_classes = 6  # CREMA-D 数据集的情感类别数
-    epochs = 10
+    epochs = 50
     lr = 1e-3
     weight_decay = 1e-5  # L2 正则化
 
-    # 加载数据
-    train_loader, val_loader, test_loader, class_indices = load_datasets(
+    # 加载数据 - 修改为接收5个返回值
+    train_loader, val_loader, test_loader, class_indices, speaker_indices = load_datasets(
         data_folder=data_folder,
         img_size=(224, 224),
         batch_size=batch_size
@@ -317,5 +351,5 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)  # 添加 L2 正则化
 
     # 训练模型
-    train_model(model, train_loader, val_loader, device, log_file, epochs=epochs, lr=lr, resume_training=True)
+    train_model(model, train_loader, val_loader, device, log_file, model_dir, epochs=epochs, lr=lr, resume_training=True)
 
