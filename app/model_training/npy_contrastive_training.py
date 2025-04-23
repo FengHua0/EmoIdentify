@@ -208,10 +208,13 @@ class CNN_RNN(nn.Module):
 
     def _get_lstm_input_dim(self):
         # 使用虚拟输入计算CNN输出维度
-        # 将虚拟输入的通道数从 1 改为 3，以匹配CNN的期望输入
-        dummy_input = torch.randn(1, 3, 128, 100)  # 假设输入为(1, 3, 128, 100)
+        # 将虚拟输入的尺寸从 (1, 3, 128, 100) 改为 (1, 3, 224, 224)
+        # 以匹配 load_datasets 中 Resize 后的实际尺寸
+        dummy_input = torch.randn(1, 3, 224, 224) 
         with torch.no_grad():
             cnn_out = self.cnn(dummy_input)
+            # 检查cnn_out的形状，确保计算正确
+            # print(f"CNN output shape for dummy input: {cnn_out.shape}")
             return cnn_out.size(1) * cnn_out.size(2)  # C * H
 
     def attention(self, lstm_output):
