@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 from app.predict.Base_model import BaseModel
 from app.predict.factory_registry import register_model
 from app.visible.spectrogram import spectrogram_base64
-from app.visible.visual_clustering import visualize_clustering
 from app.model_training.contrastive_training import CNN_RNN
 
 @register_model('contrastive')

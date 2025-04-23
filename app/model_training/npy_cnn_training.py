@@ -347,7 +347,7 @@ if __name__ == "__main__":
     # 训练参数
     batch_size = 64
     num_classes = 6  # CREMA-D 数据集的情感类别数
-    epochs = 1
+    epochs = 50
     lr = 1e-3
     weight_decay = 1e-5  # L2 正则化
 
