@@ -24,14 +24,22 @@ def audio_bytes_to_npy(input_data, sr=16000, n_fft=2048, hop_length=512, n_mels=
         else:
             raise ValueError("输入数据必须是文件路径(str)、numpy数组或字节流(bytes)")
             
+        # 计算频率范围
+        mel_low = 0
+        mel_high = 2595 * np.log10(1 + (sr / 2) / 700)
+
         # 提取梅尔频谱
         mel_spec = librosa.feature.melspectrogram(
             y=y, sr=sr,
             n_fft=n_fft,
             hop_length=hop_length,
-            n_mels=n_mels
+            n_mels=n_mels,
+            fmin=mel_low,
+            fmax=mel_high
         )
-        return librosa.power_to_db(mel_spec, ref=np.max)
+        
+        # 使用20*np.log10转换分贝
+        return 20 * np.log10(np.maximum(mel_spec, np.finfo(float).eps))
         
     except Exception as e:
         print(f"处理音频数据时出错: {e}")

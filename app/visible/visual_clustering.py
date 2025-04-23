@@ -333,6 +333,43 @@ def load_or_extract_features(model=None, data_loader=None, device=None, model_ty
                 speaker_ids=speaker_ids)
         return features, labels, speaker_ids
 
+from sklearn.metrics.pairwise import cosine_distances
+
+def quantitative_speaker_analysis(features, speaker_ids):
+    """
+    对身份信息进行定量分析，计算同一说话人和不同说话人之间的特征余弦距离
+    Args:
+        features: 特征数组 (N, D)
+        speaker_ids: 说话人ID数组 (N,)
+    Returns:
+        dict: 包含同说话人和异说话人距离的均值和标准差
+    """
+    features = np.asarray(features)
+    speaker_ids = np.asarray(speaker_ids)
+    n = features.shape[0]
+    cos_dists = cosine_distances(features)
+    same_speaker_dists = []
+    diff_speaker_dists = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            if speaker_ids[i] == speaker_ids[j]:
+                same_speaker_dists.append(cos_dists[i, j])
+            else:
+                diff_speaker_dists.append(cos_dists[i, j])
+    same_speaker_dists = np.array(same_speaker_dists)
+    diff_speaker_dists = np.array(diff_speaker_dists)
+    result = {
+        "same_speaker_mean": float(np.mean(same_speaker_dists)),
+        "same_speaker_std": float(np.std(same_speaker_dists)),
+        "diff_speaker_mean": float(np.mean(diff_speaker_dists)),
+        "diff_speaker_std": float(np.std(diff_speaker_dists)),
+        "same_count": int(len(same_speaker_dists)),
+        "diff_count": int(len(diff_speaker_dists))
+    }
+    print("身份信息定量分析结果：")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return result
+
 def visualize_clustering(model_type='contrastive', data_folder=None, model_path=None, 
                        output_path=None, features_path=None):
     """
@@ -369,6 +406,9 @@ def visualize_clustering(model_type='contrastive', data_folder=None, model_path=
         model_type=model_type
     )
     
+    # 新增：身份信息定量分析
+    quantitative_speaker_analysis(features, speaker_ids)
+    
     # 可视化集群
     fig = plt.figure(figsize=(12, 10))
     visualize_clusters(features, labels, speaker_ids, method="tsne", save_path=output_path)
@@ -385,7 +425,7 @@ def visualize_clustering(model_type='contrastive', data_folder=None, model_path=
 # 修改主程序
 if __name__ == "__main__":
     # 定义模型类型
-    model_type = "spectrogram"  # 可以改为'spectrogram','contrastive'
+    model_type = "contrastive"  # 可以改为'spectrogram','contrastive'
     
     # 直接调用visualize_clustering，内部会处理路径生成
     result = visualize_clustering(model_type=model_type)

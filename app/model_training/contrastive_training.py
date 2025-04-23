@@ -269,21 +269,6 @@ def log_results(log_file,train_loss, train_acc, val_loss, val_acc):
         f.write(f"Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f} | "
                 f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
 
-def log_results(log_file, train_loss, train_acc, val_loss, val_acc):
-    """
-    将每个 epoch 的训练结果记录到日志文件
-    Args:
-        log_file (str): 日志文件路径
-        epoch (int): 当前 epoch
-        train_loss (float): 训练损失
-        train_acc (float): 训练准确率
-        val_loss (float): 验证损失
-        val_acc (float): 验证准确率
-    """
-    with open(log_file, "a") as f:
-        f.write(f"Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f} | "
-                f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
-
 # 模型训练函数（添加对比学习功能）
 def train_model(model, train_loader, val_loader, device, model_output, log_file, epochs=10, lr=1e-3, resume_training=True, pre_model=None):
     criterion = NTXentLoss(temperature=0.5)  # 对比损失函数
