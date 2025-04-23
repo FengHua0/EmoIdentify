@@ -97,6 +97,8 @@ def load_datasets(data_folder, img_size=(224, 224), batch_size=64):
 
     # 保存类别映射
     class_save_path = "../models/label_encoder/CREMA-D_CNN_class.json"
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    class_save_path = os.path.join(current_dir, class_save_path)
     os.makedirs(os.path.dirname(class_save_path), exist_ok=True)
     with open(class_save_path, "w") as f:
         json.dump(class_indices, f)
@@ -105,6 +107,7 @@ def load_datasets(data_folder, img_size=(224, 224), batch_size=64):
 
     # 保存说话人标签映射
     speaker_save_path = "../models/label_encoder/CREMA-D_CNN_speaker.json"
+    speaker_save_path = os.path.join(current_dir, speaker_save_path)
     os.makedirs(os.path.dirname(speaker_save_path), exist_ok=True)
     with open(speaker_save_path, "w") as f:
         json.dump(speaker_indices, f)

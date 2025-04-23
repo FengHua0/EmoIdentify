@@ -85,6 +85,8 @@ def load_and_group_features(data_folder, file_name):
     # 保存 LabelEncoder 到文件
     folder_name = os.path.basename(data_folder.rstrip("/"))  # 获取 input_folder 的最后一个文件夹名
     encoder_path = os.path.join("../models/label_encoder", f"{folder_name}_label_encoder.joblib")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    encoder_path = os.path.join(current_dir, encoder_path)
     joblib.dump(label_encoder, encoder_path)
     print(f"LabelEncoder 已保存到: {encoder_path}")
 
