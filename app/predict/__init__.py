@@ -3,6 +3,7 @@ from app.predict.SVM_predict import SVM
 from app.predict.RNN_predict import RNN
 from app.predict.CNN_RNN_predict import CNN
 from app.predict.contrastive_predict import contrastive
+from app.predict.npy_cnn_predict import NpyCNN
 
 def model_factory(model_type, processed_audio, sr):
 
