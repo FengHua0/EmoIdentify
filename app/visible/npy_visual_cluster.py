@@ -266,7 +266,7 @@ def extract_features(model, data_loader, device):
 
     return all_features, all_labels, all_speaker_ids
 
-# 新增：身份信息定量分析函数
+# 身份信息定量分析函数
 def quantitative_speaker_analysis(features, speaker_ids):
     """
     对身份信息进行定量分析，计算同一说话人和不同说话人之间的特征余弦距离
@@ -329,7 +329,7 @@ def quantitative_speaker_analysis(features, speaker_ids):
 # 主程序入口
 if __name__ == "__main__":
 
-    model_type = "npy_contrastive"  # 在这里直接指定模型类型: 'npy_cnn' 或 'npy_contrastive'
+    model_type = "npy_cnn"  # 在这里直接指定模型类型: 'npy_cnn' 或 'npy_contrastive'
     batch_size = 64
 
     # 1. 生成路径 (使用硬编码的 model_type)
