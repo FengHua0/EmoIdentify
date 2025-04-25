@@ -121,82 +121,92 @@ class SingleToThreeChannels:
     def __call__(self, x):
         return x.repeat(3, 1, 1) if x.size(0) == 1 else x
 
-# 修改load_datasets函数
+# 清理后的 load_datasets 函数
 def load_datasets(data_folder, batch_size=64, target_length=100):
     """加载.npy数据集并返回DataLoader"""
     print(f"加载数据集: {data_folder}")
-    
-    transform = transforms.Compose([
-        SingleToThreeChannels(),
-        transforms.Resize((224, 224)),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-    
+
     # 使用NPYDataset加载数据集
     train_dataset = NPYDataset(data_folder, split="train", target_length=target_length)
     val_dataset = NPYDataset(data_folder, split="val", target_length=target_length)
     test_dataset = NPYDataset(data_folder, split="test", target_length=target_length)
-    
+
     # 创建DataLoader
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+    # 注意：根据你的系统资源调整 num_workers
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True) # num_workers=0 for Windows compatibility if issues arise
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     print(f"数据加载完成: 训练集 {len(train_dataset)} 样本, 验证集 {len(val_dataset)} 样本, 测试集 {len(test_dataset)} 样本")
 
-    # 获取类别索引并转换为您需要的格式
-    class_indices = {i: emotion for i, emotion in enumerate(os.listdir(os.path.join(data_folder, "train")))}
-    
-    # 提取说话人ID（从文件名的开头数字）
+    # 获取类别索引 (确保 train 文件夹下是情感子文件夹)
+    try:
+        class_indices = {i: emotion for i, emotion in enumerate(sorted(os.listdir(os.path.join(data_folder, "train"))))}
+        if not class_indices:
+             print(f"警告: 在 {os.path.join(data_folder, 'train')} 中未找到情感子文件夹。")
+    except FileNotFoundError:
+        print(f"错误: 训练数据文件夹 {os.path.join(data_folder, 'train')} 未找到。")
+        class_indices = {} # 或者抛出异常
+
+    # 提取说话人ID映射
     speaker_indices = train_dataset.speaker_ids
 
-    # 保存类别映射
-    class_save_path = "../models/label_encoder/CREMA-D_CNN_class.json"
+    # --- 保存映射文件 ---
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    class_save_path = os.path.join(current_dir, class_save_path)
-    os.makedirs(os.path.dirname(class_save_path), exist_ok=True)
-    with open(class_save_path, "w") as f:
-        json.dump(class_indices, f)
+    label_encoder_dir = os.path.join(current_dir, "..", "models", "label_encoder") # 统一存放目录
+    os.makedirs(label_encoder_dir, exist_ok=True)
 
-    print(f"类别标签映射已保存: {class_save_path}")
+    # 保存类别映射 (使用更明确的文件名)
+    class_save_path = os.path.join(label_encoder_dir, "npy_contrastive_class_map.json")
+    try:
+        with open(class_save_path, "w") as f:
+            json.dump(class_indices, f, indent=4)
+        print(f"类别标签映射已保存: {class_save_path}")
+    except Exception as e:
+        print(f"保存类别映射时出错: {e}")
 
-    # 保存说话人标签映射
-    speaker_save_path = "../models/label_encoder/CREMA-D_CNN_speaker.json"
-    speaker_save_path = os.path.join(current_dir, speaker_save_path)
-    os.makedirs(os.path.dirname(speaker_save_path), exist_ok=True)
-    with open(speaker_save_path, "w") as f:
-        json.dump(speaker_indices, f)
 
-    print(f"说话人标签映射已保存: {speaker_save_path}")
+    # 保存说话人标签映射 (使用更明确的文件名)
+    speaker_save_path = os.path.join(label_encoder_dir, "npy_contrastive_speaker_map.json")
+    try:
+        with open(speaker_save_path, "w") as f:
+            json.dump(speaker_indices, f, indent=4)
+        print(f"说话人标签映射已保存: {speaker_save_path}")
+    except Exception as e:
+        print(f"保存说话人映射时出错: {e}")
 
     return train_loader, val_loader, test_loader, class_indices, speaker_indices
 
 # 修改CNN_RNN类
 class CNN_RNN(nn.Module):
-    def __init__(self, num_classes=10, hidden_dim=128, num_layers=1, bidirectional=False):
+    # 添加 n_mels 和 target_length 作为初始化参数
+    def __init__(self, num_classes=10, n_mels=128, target_length=100, hidden_dim=128, num_layers=1, bidirectional=False):
         super(CNN_RNN, self).__init__()
+        self.n_mels = n_mels
+        self.target_length = target_length
         # CNN部分改为3通道输入
         self.cnn = nn.Sequential(
             nn.Conv2d(3, 16, kernel_size=3, padding=1),
             nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(2), # H, W -> H/2, W/2
             nn.Conv2d(16, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(2), # H/2, W/2 -> H/4, W/4
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.MaxPool2d(2)  # H/4, W/4 -> H/8, W/8
         )
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         self.bidirectional = bidirectional
-        
-        # 动态计算LSTM输入维度
+
+        # 动态计算LSTM输入维度，使用正确的输入尺寸
         self.lstm_input_dim = self._get_lstm_input_dim()
-        
+        print(f"计算得到的 LSTM 输入维度: {self.lstm_input_dim}") # 打印维度以供调试
+
         self.lstm = nn.LSTM(
             input_size=self.lstm_input_dim,
             hidden_size=hidden_dim,
@@ -204,64 +214,56 @@ class CNN_RNN(nn.Module):
             batch_first=True,
             bidirectional=bidirectional
         )
+        # 注意力层 (如果需要，取消注释)
+        # attention_dim = hidden_dim * (2 if bidirectional else 1)
+        # self.attention_fc = nn.Linear(attention_dim, 1)
+
         self.fc = nn.Linear(hidden_dim * (2 if bidirectional else 1), num_classes)
 
+    # 移除重复的 _get_lstm_input_dim 方法定义
     def _get_lstm_input_dim(self):
-        # 使用虚拟输入计算CNN输出维度
-        # 将虚拟输入的尺寸从 (1, 3, 128, 100) 改为 (1, 3, 224, 224)
-        # 以匹配 load_datasets 中 Resize 后的实际尺寸
-        dummy_input = torch.randn(1, 3, 224, 224) 
+        # 使用与 NPYDataset 输出匹配的虚拟输入计算CNN输出维度
+        # 使用 self.n_mels 和 self.target_length
+        dummy_input = torch.randn(1, 3, self.n_mels, self.target_length)
         with torch.no_grad():
             cnn_out = self.cnn(dummy_input)
-            # 检查cnn_out的形状，确保计算正确
-            # print(f"CNN output shape for dummy input: {cnn_out.shape}")
-            return cnn_out.size(1) * cnn_out.size(2)  # C * H
+            # print(f"CNN output shape for dummy input ({self.n_mels}x{self.target_length}): {cnn_out.shape}")
+            # LSTM 输入特征维度是 CNN 输出的 通道数 * 高度 (C * H')
+            return cnn_out.size(1) * cnn_out.size(2)
 
-    def attention(self, lstm_output):
-        """加性注意力机制"""
-        energy = self.attention_fc(lstm_output).squeeze(-1)
-        att_weights = F.softmax(energy, dim=1)
-        context = torch.sum(lstm_output * att_weights.unsqueeze(-1), dim=1)
-        return context, att_weights
+    # 注意力机制 (如果需要，取消注释)
+    # def attention(self, lstm_output):
+    #     """加性注意力机制"""
+    #     attention_dim = self.hidden_dim * (2 if self.bidirectional else 1)
+    #     # 确保 attention_fc 定义在 __init__ 中
+    #     energy = torch.tanh(self.attention_fc(lstm_output)).squeeze(-1) # 可能需要调整激活函数
+    #     att_weights = F.softmax(energy, dim=1)
+    #     context = torch.sum(lstm_output * att_weights.unsqueeze(-1), dim=1)
+    #     return context, att_weights
 
+    # 移除重复的 forward 方法定义
     def forward(self, x):
-        cnn_out = self.cnn(x)  # [B, 64, H', W'] H'和W'是经过CNN和池化后的维度
+        # x shape: [B, 3, n_mels, target_length]
+        cnn_out = self.cnn(x)  # [B, 64, H', W'] H'=n_mels/8, W'=target_length/8
         B, C, H, W = cnn_out.shape
-        # 调整view和permute以匹配LSTM输入 (B, seq_len, features)
-        # 这里假设时间维度是W
-        cnn_out = cnn_out.view(B, C * H, W).permute(0, 2, 1)  # [B, W, C*H]
-        
-        lstm_out, _ = self.lstm(cnn_out)
-        
+        # 调整 view 和 permute 以匹配 LSTM 输入 (B, seq_len, features)
+        # 这里假设时间维度是 W (target_length 维度)
+        # LSTM 输入特征是 C*H'
+        cnn_out = cnn_out.view(B, C * H, W).permute(0, 2, 1)  # [B, W', C*H']
+
+        lstm_out, _ = self.lstm(cnn_out) # lstm_out shape: [B, W', hidden_dim * num_directions]
+
         # 如果使用了注意力机制，取消下面的注释并注释掉 lstm_out.mean(dim=1)
-        # context, _ = self.attention(lstm_out) 
-        
-        # 如果不使用注意力，使用LSTM最后一个时间步的输出或所有时间步输出的平均值
-        context = lstm_out.mean(dim=1) # 或者 lstm_out[:, -1, :] 如果是非双向LSTM
-        
-        out = self.fc(context)
-        
-        return out, context  # 返回分类结果和特征向量
+        # context, _ = self.attention(lstm_out)
 
-    # 注意：您在类定义中有两个 _get_lstm_input_dim 和 forward 方法的定义
-    # 请确保只保留一个版本的 _get_lstm_input_dim 和 forward 方法
-    # 下面是重复的方法定义，我将注释掉它们，请根据您的需要保留正确的版本
+        # 如果不使用注意力，使用LSTM所有时间步输出的平均值
+        # 或者使用最后一个时间步的输出: context = lstm_out[:, -1, :]
+        context = lstm_out.mean(dim=1) # [B, hidden_dim * num_directions]
 
-    # def _get_lstm_input_dim(self):
-    #     # 使用虚拟输入计算CNN输出维度
-    #     dummy_input = torch.randn(1, 1, 128, 100)  # 假设输入为(1, 128, 100)
-    #     with torch.no_grad():
-    #         cnn_out = self.cnn(dummy_input)
-    #         return cnn_out.size(1) * cnn_out.size(2)  # C * H
+        out = self.fc(context) # 分类输出
 
-    # def forward(self, x):
-    #     cnn_out = self.cnn(x)
-    #     B, C, H, W = cnn_out.shape
-    #     cnn_out = cnn_out.view(B, C * H, W).permute(0, 2, 1)  # (B, W, C*H)
-    #     lstm_out, _ = self.lstm(cnn_out)
-    #     context = lstm_out.mean(dim=1)
-    #     out = self.fc(context)
-    #     return out, context
+        # 返回分类结果和用于对比损失的特征向量 (这里使用 LSTM 的输出 context)
+        return out, context
 
 # 训练函数
 def calculate_accuracy(outputs, labels):
@@ -426,7 +428,7 @@ if __name__ == "__main__":
     log_file = os.path.join(current_dir, log_file)
 
     batch_size = 64
-    epochs = 70
+    epochs = 85
     lr = 1e-4
 
     target_length = 100  # 根据数据分布选择合适的值

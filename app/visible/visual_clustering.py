@@ -425,7 +425,7 @@ def visualize_clustering(model_type='contrastive', data_folder=None, model_path=
 # 修改主程序
 if __name__ == "__main__":
     # 定义模型类型
-    model_type = "contrastive"  # 可以改为'spectrogram','contrastive'
+    model_type = "spectrogram"  # 可以改为'spectrogram','contrastive'
     
     # 直接调用visualize_clustering，内部会处理路径生成
     result = visualize_clustering(model_type=model_type)
