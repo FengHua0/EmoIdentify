@@ -267,33 +267,19 @@ def extract_features(model, data_loader, device):
     return all_features, all_labels, all_speaker_ids
 
 # 身份信息定量分析函数
-def quantitative_speaker_analysis(features, speaker_ids):
-    """
-    对身份信息进行定量分析，计算同一说话人和不同说话人之间的特征余弦距离
-    Args:
-        features: 特征数组 (N, D)
-        speaker_ids: 说话人ID数组 (N,)
-    Returns:
-        dict: 包含同说话人和异说话人距离的均值和标准差
-    """
-    features = np.asarray(features)
-    speaker_ids = np.asarray(speaker_ids)
-    n = features.shape[0]
-    # 处理特征数量过少无法计算距离的情况
-    if n < 2:
-        print("警告: 特征数量不足 (< 2)，无法进行定量分析。")
-        return None
-
+def _calculate_speaker_distances(features, speaker_ids):
+    """辅助函数：计算指定特征和说话人ID的距离统计"""
     cos_dists = cosine_distances(features)
     same_speaker_dists = []
     diff_speaker_dists = []
-    for i in range(n):
-        for j in range(i + 1, n):
+    
+    for i in range(len(features)):
+        for j in range(i + 1, len(features)):
             if speaker_ids[i] == speaker_ids[j]:
                 same_speaker_dists.append(cos_dists[i, j])
             else:
                 diff_speaker_dists.append(cos_dists[i, j])
-
+    
     # 处理没有同类或异类样本对的情况
     if not same_speaker_dists:
         print("警告: 未找到同一说话人的特征对。")
@@ -313,7 +299,7 @@ def quantitative_speaker_analysis(features, speaker_ids):
         diff_std = float(np.std(diff_speaker_dists))
         diff_count = int(len(diff_speaker_dists))
 
-    result = {
+    return {
         "same_speaker_mean": same_mean,
         "same_speaker_std": same_std,
         "diff_speaker_mean": diff_mean,
@@ -321,15 +307,50 @@ def quantitative_speaker_analysis(features, speaker_ids):
         "same_count": same_count,
         "diff_count": diff_count
     }
+
+def quantitative_speaker_analysis(features, speaker_ids, labels=None, class_indices=None):
+    """
+    改进版：支持按情感类别分析说话人距离，并显示情感名称
+    Args:
+        class_indices: 类别名称映射字典 {label_idx: label_name}
+    """
+    features = np.asarray(features)
+    speaker_ids = np.asarray(speaker_ids)
+    if labels is not None:
+        labels = np.asarray(labels)
+        unique_emotions = np.unique(labels)
+    
+    n = features.shape[0]
+    if n < 2:
+        print("警告: 特征数量不足 (< 2)，无法进行定量分析。")
+        return None
+
+    results = {}
+    
+    if labels is not None:
+        for emotion in unique_emotions:
+            emotion_mask = (labels == emotion)
+            emotion_features = features[emotion_mask]
+            emotion_speaker_ids = speaker_ids[emotion_mask]
+            
+            # 获取情感名称（如果有class_indices）
+            emotion_name = class_indices.get(emotion, str(emotion)) if class_indices else str(emotion)
+            
+            emotion_result = _calculate_speaker_distances(emotion_features, emotion_speaker_ids)
+            results[f"{emotion_name}"] = emotion_result  # 使用情感名称作为键
+    
+    global_result = _calculate_speaker_distances(features, speaker_ids)
+    results["全局统计"] = global_result
+    
     print("-" * 30)
     print("身份信息定量分析结果：")
-    print(json.dumps(result, indent=2, ensure_ascii=False))
-    return result
+    print(json.dumps(results, indent=2, ensure_ascii=False))
+    return results
 
 # 主程序入口
 if __name__ == "__main__":
 
-    model_type = "npy_cnn"  # 在这里直接指定模型类型: 'npy_cnn' 或 'npy_contrastive'
+    model_type = "npy_contrastive"  # 在这里直接指定模型类型: 'npy_cnn' 或 'npy_contrastive'
     batch_size = 64
 
     # 1. 生成路径 (使用硬编码的 model_type)
@@ -414,8 +435,13 @@ if __name__ == "__main__":
         print("开始生成聚类可视化...")
         title_prefix = f"{model_type.replace('_', ' ').title()}" # e.g., "Npy Cnn"
         
-        # 定量分析
-        analysis_results = quantitative_speaker_analysis(features, speaker_ids)
+        # 定量分析（传入class_indices）
+        analysis_results = quantitative_speaker_analysis(
+            features, 
+            speaker_ids, 
+            labels=labels,
+            class_indices=class_indices
+        )
 
         # 修改输出文件名格式，移除 method
         output_filename = f"{model_type}_clusters.png"
