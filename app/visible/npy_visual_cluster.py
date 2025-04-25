@@ -1,23 +1,21 @@
+# 标准库导入
 import os
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
-from umap.umap_ import UMAP # 使用 umap-learn 库
-from torch.utils.data import DataLoader
-import json
-import argparse
 import sys
+import json
 from pathlib import Path
 from io import BytesIO
 import base64
 
-# 添加项目根目录到Python路径，以便导入其他模块
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+# 第三方库导入
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+from torch.utils.data import DataLoader
+from sklearn.metrics.pairwise import cosine_distances
 
-# 从各自的训练脚本导入模型和数据加载函数
-# 使用别名避免命名冲突
+# 本地应用/项目导入
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 from app.model_training.npy_cnn_training import CNN_RNN as NpyCnnCNN_RNN
 from app.model_training.npy_cnn_training import load_datasets as load_npy_cnn_datasets
 from app.model_training.npy_contrastive_training import CNN_RNN as NpyContrastiveCNN_RNN
@@ -28,42 +26,28 @@ MODEL_REGISTRY = {
     'npy_cnn': {
         'model_class': NpyCnnCNN_RNN,
         'load_func': load_npy_cnn_datasets,
-        'data_args': {'img_size': (224, 224)} # npy_cnn 需要 img_size
+        'data_args': {'img_size': (224, 224)}
     },
     'npy_contrastive': {
         'model_class': NpyContrastiveCNN_RNN,
         'load_func': load_npy_contrastive_datasets,
-        'data_args': {'target_length': 100} # npy_contrastive 需要 target_length
+        'data_args': {'target_length': 100}
     }
 }
 
-def visualize_clusters(features, labels, speaker_ids, method="tsne", save_path=None, title_prefix=""):
+def visualize_clusters(features, labels, speaker_ids, save_path=None, title_prefix=""): # 移除 method 参数
     """
-    可视化聚类结果 (与 visual_clustering.py 相同)
+    可视化聚类结果 (使用 t-SNE)
     Args:
         features: 特征数组
         labels: 标签数组 (情感)
         speaker_ids: 说话人ID数组
-        method: 降维方法 ('tsne', 'pca', 'umap')
         save_path: 图片保存路径
         title_prefix: 标题前缀 (例如模型类型)
     """
-    print(f"开始使用 {method.upper()} 进行可视化...")
+    print(f"开始使用 t-SNE 进行可视化...")
     # 降维
-    if method == "tsne":
-        reducer = TSNE(n_components=2, random_state=42, perplexity=min(30, len(features)-1)) # 调整 perplexity
-    elif method == "pca":
-        reducer = PCA(n_components=2)
-    elif method == "umap":
-        # UMAP 对 n_neighbors 敏感，确保其小于样本数
-        n_neighbors = min(15, len(features) - 1)
-        if n_neighbors < 2:
-             print(f"警告: UMAP 的 n_neighbors ({n_neighbors}) 过小，可能导致错误或结果不佳。")
-             n_neighbors = max(2, n_neighbors) # 至少为2
-        reducer = UMAP(n_components=2, random_state=42, n_neighbors=n_neighbors, min_dist=0.1)
-    else:
-        raise ValueError(f"未知的降维方法: {method}")
-
+    reducer = TSNE(n_components=2, random_state=42, perplexity=min(30, len(features)-1))
     embeddings = reducer.fit_transform(features)
 
     # 定义形状映射 (每个情感类别对应一个形状)
@@ -129,9 +113,9 @@ def visualize_clusters(features, labels, speaker_ids, method="tsne", save_path=N
         plt.gca().add_artist(leg1)
 
 
-    plt.title(f"{title_prefix} Clustering ({method.upper()}) - Shapes:Emotion, Colors:Speaker")
-    plt.xlabel(f"{method.upper()} Component 1")
-    plt.ylabel(f"{method.upper()} Component 2")
+    plt.title(f"{title_prefix} Clustering (t-SNE) - Shapes:Emotion, Colors:Speaker")
+    plt.xlabel("t-SNE Component 1")
+    plt.ylabel("t-SNE Component 2")
     plt.grid(True) # 添加网格
 
     if save_path:
@@ -176,13 +160,10 @@ def generate_paths(model_type):
     }
 
     if model_type == 'npy_cnn':
-        # 修改: 使用 current_dir 替代 base_model_dir
-        paths['model_path'] = os.path.join(current_dir, "npy_cnn/npy_cnn_model.pth")
+        paths['model_path'] = os.path.join(base_model_dir, "npy_cnn_model.pth")
 
     elif model_type == 'npy_contrastive':
-        # 修改: 使用 current_dir 替代 base_model_dir
-        # 注意：这里保留了上一轮修改的 "npy_contrastive/" 子目录，如果模型直接在 current_dir 下，请移除 "npy_contrastive/"
-        paths['model_path'] = os.path.join(current_dir, "npy_contrastive/npy_contrastive_model.pth")
+        paths['model_path'] = os.path.join(base_model_dir, "npy_contrastive_model.pth")
     else:
         raise ValueError(f"未知的模型类型: {model_type}")
 
@@ -194,13 +175,9 @@ def generate_paths(model_type):
     # 检查模型文件是否存在
     if not paths['model_path'] or not os.path.exists(paths['model_path']):
          print(f"警告: 模型文件未找到于 {paths['model_path']}。请确保模型已训练并保存。")
-         # 可以选择抛出错误或允许脚本继续（如果只想加载数据）
-         # raise FileNotFoundError(f"模型文件未找到: {paths['model_path']}")
 
     print(f"模型路径: {paths['model_path']}")
-    print(f"数据路径: {paths['data_folder']}")
     print(f"输出图片目录: {paths['output_dir']}")
-    print(f"特征保存目录: {paths['features_dir']}")
 
     return paths
 
@@ -229,7 +206,6 @@ def load_model_and_data(model_type, data_folder, model_path, batch_size=64):
     # 加载数据 (只需要测试集进行可视化)
     # 注意：load_datasets 返回 train, val, test loaders, class_indices, speaker_indices
     # 我们只关心 test_loader 和 indices
-    print(f"使用 {load_func.__name__} 加载数据...")
     _, _, test_loader, class_indices, speaker_indices = load_func(
         data_folder=data_folder,
         batch_size=batch_size,
@@ -290,27 +266,120 @@ def extract_features(model, data_loader, device):
 
     return all_features, all_labels, all_speaker_ids
 
+# 新增：身份信息定量分析函数
+def quantitative_speaker_analysis(features, speaker_ids):
+    """
+    对身份信息进行定量分析，计算同一说话人和不同说话人之间的特征余弦距离
+    Args:
+        features: 特征数组 (N, D)
+        speaker_ids: 说话人ID数组 (N,)
+    Returns:
+        dict: 包含同说话人和异说话人距离的均值和标准差
+    """
+    features = np.asarray(features)
+    speaker_ids = np.asarray(speaker_ids)
+    n = features.shape[0]
+    # 处理特征数量过少无法计算距离的情况
+    if n < 2:
+        print("警告: 特征数量不足 (< 2)，无法进行定量分析。")
+        return None
+
+    cos_dists = cosine_distances(features)
+    same_speaker_dists = []
+    diff_speaker_dists = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            if speaker_ids[i] == speaker_ids[j]:
+                same_speaker_dists.append(cos_dists[i, j])
+            else:
+                diff_speaker_dists.append(cos_dists[i, j])
+
+    # 处理没有同类或异类样本对的情况
+    if not same_speaker_dists:
+        print("警告: 未找到同一说话人的特征对。")
+        same_mean, same_std, same_count = np.nan, np.nan, 0
+    else:
+        same_speaker_dists = np.array(same_speaker_dists)
+        same_mean = float(np.mean(same_speaker_dists))
+        same_std = float(np.std(same_speaker_dists))
+        same_count = int(len(same_speaker_dists))
+
+    if not diff_speaker_dists:
+        print("警告: 未找到不同说话人的特征对。")
+        diff_mean, diff_std, diff_count = np.nan, np.nan, 0
+    else:
+        diff_speaker_dists = np.array(diff_speaker_dists)
+        diff_mean = float(np.mean(diff_speaker_dists))
+        diff_std = float(np.std(diff_speaker_dists))
+        diff_count = int(len(diff_speaker_dists))
+
+    result = {
+        "same_speaker_mean": same_mean,
+        "same_speaker_std": same_std,
+        "diff_speaker_mean": diff_mean,
+        "diff_speaker_std": diff_std,
+        "same_count": same_count,
+        "diff_count": diff_count
+    }
+    print("-" * 30)
+    print("身份信息定量分析结果：")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return result
+
 # 主程序入口
 if __name__ == "__main__":
 
-    # --- 直接在此处定义参数 ---
-    model_type = "npy_cnn"  # 在这里直接指定模型类型: 'npy_cnn' 或 'npy_contrastive'
-    batch_size = 32         # 使用默认的 batch_size
-    methods = ['tsne', 'pca', 'umap'] # 使用默认的降维方法
-    skip_feature_extraction = False # 默认不跳过特征提取
-    # -------------------------
+    model_type = "npy_contrastive"  # 在这里直接指定模型类型: 'npy_cnn' 或 'npy_contrastive'
+    batch_size = 64
 
     # 1. 生成路径 (使用硬编码的 model_type)
     paths = generate_paths(model_type)
-    features_filename = f"npy_{model_type}_features.npz"
+    features_filename = f"{model_type}_features.npz"
     features_save_path = os.path.join(paths['features_dir'], features_filename)
     features_save_path = os.path.abspath(features_save_path).replace("/", "\\")
 
 
-    # 2. 加载模型和数据 / 或加载已有特征 (使用硬编码的参数)
-    if not skip_feature_extraction:
+    # 2. 检查特征文件是否存在，如果存在则加载，否则提取并保存
+    if os.path.exists(features_save_path):
         print("-" * 30)
-        print(f"加载模型和数据: {model_type}")
+        print(f"发现已存在的特征文件，直接加载: {features_save_path}")
+        try:
+            data = np.load(features_save_path, allow_pickle=True) # allow_pickle 以加载 json 字符串
+            features = data['features']
+            labels = data['labels']
+            speaker_ids = data['speaker_ids']
+            # 从 json 字符串恢复字典
+            class_indices_json = data['class_indices']
+            speaker_indices_json = data['speaker_indices']
+            # 处理 .item() 可能返回 bytes 的情况
+            class_indices_str = class_indices_json.item()
+            speaker_indices_str = speaker_indices_json.item()
+            if isinstance(class_indices_str, bytes):
+                class_indices_str = class_indices_str.decode('utf-8')
+            if isinstance(speaker_indices_str, bytes):
+                speaker_indices_str = speaker_indices_str.decode('utf-8')
+
+            class_indices = json.loads(class_indices_str)
+            speaker_indices = json.loads(speaker_indices_str)
+
+            print(f"成功加载 {len(features)} 个特征.")
+            # 将字符串键转回整数（如果需要）
+            class_indices = {int(k): v for k, v in class_indices.items()}
+
+        except Exception as e:
+            print(f"加载特征文件时出错: {e}")
+            print("将尝试重新提取特征。")
+            # 设置标记，强制执行特征提取流程
+            force_extraction = True
+    else:
+        # 文件不存在，需要提取
+        force_extraction = True
+        print(f"特征文件 {features_save_path} 未找到。")
+
+    # 如果文件不存在或加载失败，则执行提取流程
+    if not os.path.exists(features_save_path) or 'force_extraction' in locals() and force_extraction:
+        print("-" * 30)
+        print(f"加载模型和数据以提取特征: {model_type}")
         model, test_loader, class_indices, speaker_indices, device = load_model_and_data(
             model_type=model_type,
             data_folder=paths['data_folder'],
@@ -327,59 +396,44 @@ if __name__ == "__main__":
         os.makedirs(paths['features_dir'], exist_ok=True)
         print(f"保存提取的特征到: {features_save_path}")
         # 保存时也保存类别和说话人映射信息
-        np.savez(features_save_path,
-                 features=features,
-                 labels=labels,
-                 speaker_ids=speaker_ids,
-                 class_indices=json.dumps(class_indices), # npz 不能直接存 dict，转为 json 字符串
-                 speaker_indices=json.dumps(speaker_indices)) # 同上
-    else:
+        try:
+            np.savez(features_save_path,
+                     features=features,
+                     labels=labels,
+                     speaker_ids=speaker_ids,
+                     class_indices=json.dumps(class_indices), # npz 不能直接存 dict，转为 json 字符串
+                     speaker_indices=json.dumps(speaker_indices)) # 同上
+            print("特征保存成功。")
+        except Exception as e:
+            print(f"保存特征文件时出错: {e}")
+
+    if 'features' in locals() and 'labels' in locals() and 'speaker_ids' in locals():
+
+        # 5. 可视化聚类 (使用加载或新提取的特征)
         print("-" * 30)
-        print(f"跳过特征提取，尝试加载已有特征文件: {features_save_path}")
-        if os.path.exists(features_save_path):
-            data = np.load(features_save_path, allow_pickle=True) # allow_pickle 以加载 json 字符串
-            features = data['features']
-            labels = data['labels']
-            speaker_ids = data['speaker_ids']
-            # 从 json 字符串恢复字典
-            class_indices_json = data['class_indices']
-            speaker_indices_json = data['speaker_indices']
-            class_indices = json.loads(class_indices_json.item()) if isinstance(class_indices_json.item(), str) else class_indices_json.item()
-            speaker_indices = json.loads(speaker_indices_json.item()) if isinstance(speaker_indices_json.item(), str) else speaker_indices_json.item()
+        print("开始生成聚类可视化...")
+        title_prefix = f"{model_type.replace('_', ' ').title()}" # e.g., "Npy Cnn"
+        
+        # 定量分析
+        analysis_results = quantitative_speaker_analysis(features, speaker_ids)
 
-            print(f"成功加载 {len(features)} 个特征.")
-            # 将字符串键转回整数（如果需要）
-            class_indices = {int(k): v for k, v in class_indices.items()}
-            # speaker_indices 的键通常是字符串 ID，值是整数索引，可能不需要转换
-        else:
-            print(f"错误: 特征文件 {features_save_path} 未找到。请先运行不带 --skip_feature_extraction 的脚本。")
-            sys.exit(1)
-
-
-    # 5. 可视化聚类 (使用硬编码的 model_type 和 methods)
-    print("-" * 30)
-    print("开始生成聚类可视化...")
-    title_prefix = f"{model_type.replace('_', ' ').title()}" # e.g., "Npy Cnn"
-
-    for method in methods: # 使用硬编码的 methods 列表
-        method = method.lower()
-        if method not in ['tsne', 'pca', 'umap']:
-            print(f"警告: 跳过未知方法 '{method}'")
-            continue
-
-        output_filename = f"npy_{model_type}_{method}_clusters.png"
+        # 修改输出文件名格式，移除 method
+        output_filename = f"{model_type}_clusters.png"
         output_save_path = os.path.join(paths['output_dir'], output_filename)
         output_save_path = os.path.abspath(output_save_path).replace("/", "\\")
 
-
+        # 调用 visualize_clusters，移除 method 参数
         visualize_clusters(
             features=features,
             labels=labels,
             speaker_ids=speaker_ids,
-            method=method,
             save_path=output_save_path,
             title_prefix=title_prefix
         )
 
-    print("-" * 30)
-    print("所有可视化完成.")
+        print("-" * 30)
+        print("可视化完成.")
+    else:
+        print("-" * 30)
+        print("错误：未能加载或提取特征，无法进行分析和可视化。")
+        sys.exit(1)
