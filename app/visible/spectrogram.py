@@ -34,15 +34,27 @@ def spectrogram_base64(input_data, sr=16000):
     else:
         raise ValueError("输入数据必须是文件路径 (str) 或音频数据 (NumPy 数组)。")
 
-    # 频率范围(默认是 0 - sr / 2，使用这个模拟人耳的高频)
+    # 2. 进行短时傅里叶变换（STFT）
+    S = librosa.stft(y, n_fft=2048, hop_length=1024)
+
+    # 3. 取幅度谱
+    magnitude = np.abs(S)
+
+    # 4. 设定梅尔尺度的频率范围
     mel_low = 0
     mel_high = 2595 * np.log10(1 + (sr / 2) / 700)
 
-    # 使用 librosa 生成梅尔频谱图
-    S = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=2048, hop_length=1024, fmin=mel_low, fmax=mel_high)
+    # 5. 创建梅尔滤波器组
+    mel_filter_bank = librosa.filters.mel(sr=sr, n_fft=2048, n_mels=128, fmin=mel_low, fmax=mel_high)
 
-    # 使用 20 * np.log10 对频谱图进行对数转换
-    S = 20 * np.log10(np.maximum(S, np.finfo(float).eps))
+    # 6. 将STFT幅度谱映射到梅尔尺度
+    S = np.dot(mel_filter_bank, magnitude)
+
+    # 7. 防止数值下溢，保证非零
+    S = np.maximum(S, np.finfo(float).eps)
+
+    # 8. 进行对数压缩
+    S = 20 * np.log10(S)
 
     # 有坐标的图片（用于特征展示）：base64_with_coords
     plt.figure(figsize=(12, 6))
@@ -68,6 +80,62 @@ def spectrogram_base64(input_data, sr=16000):
 
     return show, train
 
+def linear_spectrogram_base64(input_data, sr=16000):
+    """
+    将音频数据转换为线性频谱图并返回其 Base64 编码。
+    不进行梅尔频率转换，使用线性频率刻度。
+
+    :param input_data: 音频数据 (str路径/np数组/bytes)
+    :param sr: 采样率，默认 16000
+    :return: 包含 'feature_name' 和 'base64' 的字典
+    """
+    try:
+        # 判断输入类型
+        if isinstance(input_data, str):
+            y, sr = librosa.load(input_data, sr=sr)
+        elif isinstance(input_data, np.ndarray):
+            y = input_data
+        elif isinstance(input_data, bytes):
+            y, sr = librosa.load(io.BytesIO(input_data), sr=sr, mono=True)
+        else:
+            raise ValueError("输入数据必须是文件路径(str)、NumPy数组或bytes")
+
+        # 检查音频长度
+        if len(y) < 2048:  # n_fft的默认值
+            raise ValueError(f"音频太短({len(y)} samples)，至少需要2048 samples")
+
+        # 使用短时傅里叶变换生成线性频谱图
+        D = np.abs(librosa.stft(y, n_fft=2048, hop_length=512))
+
+        # 对数转换
+        S = 20 * np.log10(np.maximum(D, np.finfo(float).eps))
+        
+        # 创建图形
+        plt.figure(figsize=(12, 6))
+        librosa.display.specshow(S, sr=sr, x_axis='time', y_axis='linear', cmap='viridis')
+        plt.title('Linear Spectrogram')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Frequency (Hz)')
+        plt.colorbar(format='%+2.0f dB')
+        
+        # 生成Base64编码
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+        plt.close()
+        buf.seek(0)
+        img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+
+        return {
+            'feature_name': 'Linear Spectrogram',
+            'base64': img_base64
+        }
+
+    except Exception as e:
+        print(f"生成线性频谱图时出错: {str(e)}")
+        return {
+            'error': str(e),
+            'feature_name': 'Linear Spectrogram Error'
+        }
 
 def save_spectrogram(base64_str, output_path):
     """

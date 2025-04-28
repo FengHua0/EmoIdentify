@@ -2,6 +2,34 @@ import base64
 from io import BytesIO
 import matplotlib.pyplot as plt
 import numpy as np
+import librosa
+from pydub import AudioSegment
+
+def extract_mfcc(audio_data):
+    """
+    从预处理后的音频数据中提取MFCC特征
+    
+    Args:
+        audio_data: 预处理后的音频数据 (numpy数组)
+        
+    Returns:
+        np.ndarray: MFCC特征数组 (二维或一维)
+    """
+    try:
+        # 提取MFCC特征 (假设采样率已经是16000Hz)
+        mfcc = librosa.feature.mfcc(y=audio_data, sr=16000, n_mfcc=13)
+        
+        # 转置使时间步为第一维度
+        mfcc = mfcc.T
+        
+        # 如果是单帧MFCC，则返回一维数组
+        if mfcc.shape[0] == 1:
+            return mfcc[0]  # 返回一维数组
+        return mfcc  # 返回二维数组
+        
+    except Exception as e:
+        print(f"提取MFCC特征时出错: {e}")
+        raise
 
 def mfcc_heatmap(data, title="Feature Heatmap"):
     """
