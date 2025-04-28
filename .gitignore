@@ -16,6 +16,7 @@
 **/*.joblib
 **/*.json
 **/*.npy
+**/*.pyc
 
 # Python编译文件
 __pycache__/
