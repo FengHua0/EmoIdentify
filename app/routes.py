@@ -5,8 +5,9 @@ from pydub import AudioSegment
 import librosa
 from app.file_process.data_processing import preprocess_audio
 from app.predict import model_factory
-from app.visible.spectrogram import spectrogram_base64
+from app.visible.spectrogram import spectrogram_base64, linear_spectrogram_base64
 from app.visible.waveform import waveform_base64
+from app.visible.MFCC_visible import mfcc_heatmap, extract_mfcc
 
 app = Flask(__name__)
 
@@ -57,6 +58,7 @@ def predict():
 
         # 特征提取和可视化
         spectrogram, _ = spectrogram_base64(wav_bytes)
+        # linear_spectrogram = linear_spectrogram_base64(wav_bytes)
         waveform = waveform_base64(wav_bytes)
 
         if wav_bytes is None:
@@ -64,6 +66,13 @@ def predict():
         # 使用工厂模式获取模型实例
         try:
             model = model_factory(model_type, wav_bytes, sr)
+            
+            # 如果是SVM或RNN模型，执行特征提取
+            if model_type.lower() in ['svm', 'rnn']:
+                mfcc_feature = model.extract_features()
+                if mfcc_feature is None:
+                    return jsonify({'error': '特征提取失败'}), 500
+                    
         except ValueError as ve:
             return jsonify({'error': str(ve)}), 400
 
@@ -71,7 +80,7 @@ def predict():
             return jsonify({'error': 'Failed to create model instance'}), 500
 
         # 执行预测
-        # mfcc_feature = model.extract_features()
+        # mfcc_feature = extract_mfcc(wav_bytes)
         result = model.predict()
         if result is None:
             return jsonify({'error': 'Prediction failed'}), 500
@@ -83,10 +92,12 @@ def predict():
         confidence = result['confidence']
 
         features = []
-
         # 使用append方法逐个添加特征
-        # features.append(mfcc_feature)
         features.append(confidence)
+
+        # features.append(mfcc_feature)
+        # features.append(linear_spectrogram)
+        
         features.append(spectrogram)
         features.append(waveform)
 
