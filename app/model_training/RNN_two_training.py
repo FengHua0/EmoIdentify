@@ -9,6 +9,7 @@ from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
 from torch.utils.data import Dataset, DataLoader
 import joblib  # 用于保存和加载 LabelEncoder
 import sys
+import time
 
 def log_results(log_file,train_loss, train_acc, val_loss, val_acc):
     """
@@ -143,6 +144,8 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
             print(f"预训练模型文件 {pretrained_model_path} 不存在，从头开始训练")
 
     for epoch in range(epochs):
+        # 记录开始时间
+        epoch_start = time.time()
         model.train()
         train_loss, correct = 0.0, 0
         for features, labels, lengths in train_loader:
@@ -172,6 +175,9 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
                 val_correct += (outputs.argmax(1) == labels).sum().item()
 
         val_acc = val_correct / len(val_loader.dataset)
+        # 计算epoch耗时
+        epoch_time = time.time() - epoch_start
+        print(f"Epoch [{epoch + 1}/{epochs}] 耗时: {epoch_time:.2f}秒")
 
         print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, "
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")

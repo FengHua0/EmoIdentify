@@ -80,7 +80,7 @@ def predict():
             return jsonify({'error': 'Failed to create model instance'}), 500
 
         # 执行预测
-        # mfcc_feature = extract_mfcc(wav_bytes)
+        mfcc_feature, _ = extract_mfcc(wav_bytes)
         result = model.predict()
         if result is None:
             return jsonify({'error': 'Prediction failed'}), 500
@@ -88,14 +88,14 @@ def predict():
         # 获取预测类别
         predicted_category = result['predicted_category']
         # MFCC特征可视化
-        # mfcc_feature = mfcc_heatmap(mfcc_feature)
+        mfcc_feature = mfcc_heatmap(mfcc_feature)
         confidence = result['confidence']
 
         features = []
         # 使用append方法逐个添加特征
         features.append(confidence)
 
-        # features.append(mfcc_feature)
+        features.append(mfcc_feature)
         # features.append(linear_spectrogram)
         
         features.append(spectrogram)

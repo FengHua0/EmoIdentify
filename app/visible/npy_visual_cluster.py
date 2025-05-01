@@ -26,12 +26,16 @@ MODEL_REGISTRY = {
     'npy_cnn': {
         'model_class': NpyCnnCNN_RNN,
         'load_func': load_npy_cnn_datasets,
-        'data_args': {'img_size': (224, 224)}
+        'data_args': {'target_length': 100},
+        # --- 添加 npy_cnn 的模型参数 ---
+        'model_args': {'n_mels': 128, 'target_length': 100} # 假设 CNN 也用这些参数
     },
     'npy_contrastive': {
         'model_class': NpyContrastiveCNN_RNN,
         'load_func': load_npy_contrastive_datasets,
-        'data_args': {'target_length': 100}
+        'data_args': {'target_length': 100},
+        # --- 添加 npy_contrastive 的模型参数 ---
+        'model_args': {'n_mels': 128, 'target_length': 100} # 与 npy_contrastive_training.py 中的默认值匹配
     }
 }
 
@@ -202,6 +206,7 @@ def load_model_and_data(model_type, data_folder, model_path, batch_size=64):
     model_class = config['model_class']
     load_func = config['load_func']
     data_args = config['data_args']
+    model_args = config.get('model_args', {}) # 获取模型参数，如果未定义则为空字典
 
     # 加载数据 (只需要测试集进行可视化)
     # 注意：load_datasets 返回 train, val, test loaders, class_indices, speaker_indices
@@ -216,7 +221,8 @@ def load_model_and_data(model_type, data_folder, model_path, batch_size=64):
     # 确保 num_classes 与加载的数据集一致
     num_classes = len(class_indices)
     print(f"初始化模型 {model_class.__name__}，类别数: {num_classes}")
-    model = model_class(num_classes=num_classes)
+    # --- 修改：初始化模型时传递 model_args ---
+    model = model_class(num_classes=num_classes, **model_args)
 
     # 加载预训练权重
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

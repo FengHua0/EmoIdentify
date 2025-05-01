@@ -13,19 +13,20 @@ def extract_mfcc(audio_data):
         audio_data: 预处理后的音频数据 (numpy数组)
         
     Returns:
-        np.ndarray: MFCC特征数组 (二维或一维)
+        tuple: (原始MFCC特征数组, 每帧MFCC特征的平均值)
     """
     try:
         # 提取MFCC特征 (假设采样率已经是16000Hz)
         mfcc = librosa.feature.mfcc(y=audio_data, sr=16000, n_mfcc=13)
         
         # 转置使时间步为第一维度
-        mfcc = mfcc.T
+        mfcc_transposed = mfcc.T
         
-        # 如果是单帧MFCC，则返回一维数组
-        if mfcc.shape[0] == 1:
-            return mfcc[0]  # 返回一维数组
-        return mfcc  # 返回二维数组
+        # 计算每帧MFCC特征的平均值
+        mfcc_mean = np.mean(mfcc, axis=1)  # 对时间维度取平均
+        
+        # 返回原始特征和平均值
+        return mfcc_transposed, mfcc_mean
         
     except Exception as e:
         print(f"提取MFCC特征时出错: {e}")

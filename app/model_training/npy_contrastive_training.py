@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
+import time
 import torch.nn.functional as F
 
 class NPYDataset(Dataset):
@@ -179,34 +180,38 @@ def load_datasets(data_folder, batch_size=64, target_length=100):
 
 # 修改CNN_RNN类
 class CNN_RNN(nn.Module):
-    # 添加 n_mels 和 target_length 作为初始化参数
     def __init__(self, num_classes=10, n_mels=128, target_length=100, hidden_dim=128, num_layers=1, bidirectional=False):
         super(CNN_RNN, self).__init__()
         self.n_mels = n_mels
         self.target_length = target_length
-        # CNN部分改为3通道输入
+
+        # CNN部分，输入为3通道
         self.cnn = nn.Sequential(
             nn.Conv2d(3, 16, kernel_size=3, padding=1),
             nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.MaxPool2d(2), # H, W -> H/2, W/2
+            nn.MaxPool2d(2),  # H, W -> H/2, W/2
+
             nn.Conv2d(16, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.MaxPool2d(2), # H/2, W/2 -> H/4, W/4
+            nn.MaxPool2d(2),  # H/2, W/2 -> H/4, W/4
+
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2)  # H/4, W/4 -> H/8, W/8
         )
+
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
         self.bidirectional = bidirectional
 
-        # 动态计算LSTM输入维度，使用正确的输入尺寸
+        # 动态计算LSTM输入维度
         self.lstm_input_dim = self._get_lstm_input_dim()
-        print(f"计算得到的 LSTM 输入维度: {self.lstm_input_dim}") # 打印维度以供调试
+        print(f"计算得到的 LSTM 输入维度: {self.lstm_input_dim}")
 
+        # LSTM层
         self.lstm = nn.LSTM(
             input_size=self.lstm_input_dim,
             hidden_size=hidden_dim,
@@ -214,56 +219,48 @@ class CNN_RNN(nn.Module):
             batch_first=True,
             bidirectional=bidirectional
         )
-        # 注意力层 (如果需要，取消注释)
-        # attention_dim = hidden_dim * (2 if bidirectional else 1)
-        # self.attention_fc = nn.Linear(attention_dim, 1)
 
-        self.fc = nn.Linear(hidden_dim * (2 if bidirectional else 1), num_classes)
+        # 注意力机制
+        attention_dim = hidden_dim * (2 if bidirectional else 1)
+        self.attention_fc = nn.Linear(attention_dim, 1)
 
-    # 移除重复的 _get_lstm_input_dim 方法定义
+        # 分类层
+        self.fc = nn.Linear(attention_dim, num_classes)
+
     def _get_lstm_input_dim(self):
-        # 使用与 NPYDataset 输出匹配的虚拟输入计算CNN输出维度
-        # 使用 self.n_mels 和 self.target_length
         dummy_input = torch.randn(1, 3, self.n_mels, self.target_length)
         with torch.no_grad():
             cnn_out = self.cnn(dummy_input)
-            # print(f"CNN output shape for dummy input ({self.n_mels}x{self.target_length}): {cnn_out.shape}")
-            # LSTM 输入特征维度是 CNN 输出的 通道数 * 高度 (C * H')
             return cnn_out.size(1) * cnn_out.size(2)
 
-    # 注意力机制 (如果需要，取消注释)
-    # def attention(self, lstm_output):
-    #     """加性注意力机制"""
-    #     attention_dim = self.hidden_dim * (2 if self.bidirectional else 1)
-    #     # 确保 attention_fc 定义在 __init__ 中
-    #     energy = torch.tanh(self.attention_fc(lstm_output)).squeeze(-1) # 可能需要调整激活函数
-    #     att_weights = F.softmax(energy, dim=1)
-    #     context = torch.sum(lstm_output * att_weights.unsqueeze(-1), dim=1)
-    #     return context, att_weights
+    def attention(self, lstm_output):
+        """
+        加性注意力机制
+        :param lstm_output: [B, T, H]
+        :return: context: [B, H], att_weights: [B, T]
+        """
+        energy = torch.tanh(self.attention_fc(lstm_output)).squeeze(-1)  # [B, T]
+        att_weights = F.softmax(energy, dim=1)  # [B, T]
+        context = torch.sum(lstm_output * att_weights.unsqueeze(-1), dim=1)  # [B, H]
+        return context, att_weights
 
-    # 移除重复的 forward 方法定义
     def forward(self, x):
-        # x shape: [B, 3, n_mels, target_length]
-        cnn_out = self.cnn(x)  # [B, 64, H', W'] H'=n_mels/8, W'=target_length/8
+        """
+        :param x: [B, 3, n_mels, target_length]
+        :return: 分类输出, 特征向量
+        """
+        cnn_out = self.cnn(x)  # [B, 64, H', W']
         B, C, H, W = cnn_out.shape
-        # 调整 view 和 permute 以匹配 LSTM 输入 (B, seq_len, features)
-        # 这里假设时间维度是 W (target_length 维度)
-        # LSTM 输入特征是 C*H'
         cnn_out = cnn_out.view(B, C * H, W).permute(0, 2, 1)  # [B, W', C*H']
 
-        lstm_out, _ = self.lstm(cnn_out) # lstm_out shape: [B, W', hidden_dim * num_directions]
+        lstm_out, _ = self.lstm(cnn_out)  # [B, W', hidden_dim * num_directions]
 
-        # 如果使用了注意力机制，取消下面的注释并注释掉 lstm_out.mean(dim=1)
-        # context, _ = self.attention(lstm_out)
+        # 启用注意力机制
+        context, _ = self.attention(lstm_out)
 
-        # 如果不使用注意力，使用LSTM所有时间步输出的平均值
-        # 或者使用最后一个时间步的输出: context = lstm_out[:, -1, :]
-        context = lstm_out.mean(dim=1) # [B, hidden_dim * num_directions]
-
-        out = self.fc(context) # 分类输出
-
-        # 返回分类结果和用于对比损失的特征向量 (这里使用 LSTM 的输出 context)
+        out = self.fc(context)
         return out, context
+
 
 # 训练函数
 def calculate_accuracy(outputs, labels):
@@ -302,6 +299,9 @@ def train_model(model, train_loader, val_loader, device, model_output, log_file,
             print(f"预训练模型 {pre_model} 不存在，跳过恢复训练。初始化新的模型。")
 
     for epoch in range(epochs):
+        # 记录开始时间
+        epoch_start = time.time()
+
         model.train()
         running_loss = 0.0
         correct_train = 0
@@ -342,8 +342,12 @@ def train_model(model, train_loader, val_loader, device, model_output, log_file,
         val_loss = val_running_loss / len(val_loader.dataset)
         val_accuracy = correct_val / total_val
 
-        print(f"Epoch [{epoch + 1}/{epochs}]: Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.4f}")
-        
+        # 计算epoch耗时
+        epoch_time = time.time() - epoch_start
+
+        # 打印结果
+        print(f"Epoch [{epoch + 1}/{epochs}]: Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.4f}, Time: {epoch_time:.2f}s")
+
         log_results(log_file, train_loss, train_accuracy, val_loss, val_accuracy)
  
         # 确保模型输出目录存在
