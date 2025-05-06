@@ -65,54 +65,58 @@ class NPYDataset(Dataset):
         
         return features, emotion_label, speaker_id
 
-# 对比损失函数
+# 对比损失函数 (修改后，专注于同一情感内的说话人对比)
 class NTXentLoss(nn.Module):
-    def __init__(self, temperature=0.5, base_temperature=0.07):
+    def __init__(self, temperature=0.8):
         super(NTXentLoss, self).__init__()
         self.temperature = temperature
-        self.base_temperature = base_temperature
-        self.eps = 1e-8
+        self.eps = 1e-7
 
     def forward(self, features, labels, speaker_ids):
-        batch_size = features.shape[0]
+        # features: [B, D], labels: [B], speaker_ids: [B]
         device = features.device
-
         features = nn.functional.normalize(features, dim=1)
-        sim_matrix = torch.matmul(features, features.T) / self.temperature
-        
-        labels = labels.contiguous().view(-1, 1)
-        emotion_mask = torch.eq(labels, labels.T).float().to(device)
-        speaker_mask = torch.eq(speaker_ids, speaker_ids.T).float().to(device)
-        mask_self = torch.eye(batch_size, dtype=torch.bool).to(device)
-        
+
         loss = 0.0
-        num_valid_classes = 0
-        
+        valid_count = 0
+
         for emotion_label in torch.unique(labels):
-            emotion_indices = (labels == emotion_label).squeeze().nonzero(as_tuple=True)[0]
-            if len(emotion_indices) <= 1:
+            idx = torch.where(labels == emotion_label)[0]
+            if len(idx) <= 1:
                 continue
-                
-            num_valid_classes += 1
-            emotion_features = features[emotion_indices]
-            emotion_speaker_ids = speaker_ids[emotion_indices]
-            emotion_sim = torch.matmul(emotion_features, emotion_features.T) / self.temperature
-            emotion_speaker_mask = torch.eq(emotion_speaker_ids, emotion_speaker_ids.T).float().to(device)
-            
-            pos_mask = emotion_speaker_mask * (~torch.eye(len(emotion_indices), dtype=torch.bool, device=device)).float()
-            neg_mask = (~emotion_speaker_mask.bool()).float() * (~torch.eye(len(emotion_indices), dtype=torch.bool, device=device)).float()
-            
-            pos_sim = (emotion_sim * pos_mask).sum(dim=1) / (pos_mask.sum(dim=1) + self.eps)
-            neg_sim = torch.logsumexp(emotion_sim * neg_mask, dim=1)
-            
-            class_loss = - (pos_sim - neg_sim).mean()
-            loss += class_loss
-            
-        if num_valid_classes > 0:
-            loss = loss / num_valid_classes * self.base_temperature
+
+            feats = features[idx]
+            spk_ids = speaker_ids[idx]
+            n = len(idx)
+
+            # 计算相似度矩阵
+            sim = torch.matmul(feats, feats.T) / self.temperature
+
+            # 掩码
+            mask_self = torch.eye(n, dtype=torch.bool, device=device)
+            mask_pos = (spk_ids.unsqueeze(0) == spk_ids.unsqueeze(1)) & (~mask_self)  # 正样本掩码
+            mask_neg = ~mask_pos & (~mask_self)  # 负样本掩码
+
+            # 对每个anchor，计算正样本对的loss
+            for i in range(n):
+                pos_idx = mask_pos[i]
+                neg_idx = mask_neg[i]
+                if pos_idx.sum() == 0:
+                    continue  # 没有正样本对，跳过
+
+                # 分子：所有正样本的exp(sim)
+                numerator = torch.exp(sim[i][pos_idx]).sum()
+                # 分母：所有正样本和负样本的exp(sim)
+                denominator = torch.exp(sim[i][neg_idx]).sum() + numerator + self.eps
+
+                loss_i = -torch.log(numerator / denominator)
+                loss += loss_i
+                valid_count += 1
+
+        if valid_count > 0:
+            loss = loss / valid_count
         else:
-            loss = torch.tensor(0.0, device=device)
-            
+            loss = torch.tensor(0.0, device=device, requires_grad=True)
         return loss
 
 # 自定义CNN-RNN模型
@@ -284,9 +288,11 @@ def log_results(log_file, train_loss, train_acc, val_loss, val_acc):
         f.write(f"Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f} | "
                 f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
 
-def train_model(model, train_loader, val_loader, device, model_output, log_file, 
-               epochs=10, lr=1e-3, resume_training=True, pre_model=None):
-    criterion = NTXentLoss(temperature=0.5)
+def train_model(model, train_loader, val_loader, device, model_output, log_file,
+               epochs=10, lr=1e-3, resume_training=True, pre_model=None, contrastive_weight=0.5): # 添加 contrastive_weight 参数
+    # 使用修改后的损失函数
+    contrastive_criterion = NTXentLoss(temperature=0.2)
+    classification_criterion = nn.CrossEntropyLoss() # 分类损失
     optimizer = optim.Adam(model.parameters(), lr=lr)
     model.to(device)
 
@@ -304,55 +310,84 @@ def train_model(model, train_loader, val_loader, device, model_output, log_file,
 
         model.train()
         running_loss = 0.0
+        running_cls_loss = 0.0 # 可选：记录分类损失
+        running_con_loss = 0.0 # 可选：记录对比损失
         correct_train = 0
         total_train = 0
 
         for batch_idx, (features, labels, speaker_ids) in enumerate(train_loader):
             features, labels, speaker_ids = features.to(device), labels.to(device), speaker_ids.to(device)
             optimizer.zero_grad()
-            outputs, features = model(features)
-            contrastive_loss = criterion(features, labels, speaker_ids)
-            classification_loss = nn.CrossEntropyLoss()(outputs, labels)
-            loss = classification_loss + contrastive_loss
+            outputs, features_for_contrastive = model(features)
+
+            # 计算分类损失
+            cls_loss = classification_criterion(outputs, labels)
+            # 计算对比损失
+            con_loss = contrastive_criterion(features_for_contrastive, labels, speaker_ids)
+
+            # 计算总损失，使用权重平衡
+            loss = cls_loss + contrastive_weight * con_loss
+
             loss.backward()
             optimizer.step()
+
             running_loss += loss.item() * features.size(0)
+            running_cls_loss += cls_loss.item() * features.size(0)
+            running_con_loss += con_loss.item() * features.size(0)
             correct_train += (outputs.argmax(1) == labels).sum().item()
             total_train += labels.size(0)
 
         train_loss = running_loss / len(train_loader.dataset)
+        train_cls_loss = running_cls_loss / len(train_loader.dataset)
+        train_con_loss = running_con_loss / len(train_loader.dataset)
         train_accuracy = correct_train / total_train
 
         model.eval()
         val_running_loss = 0.0
+        val_running_cls_loss = 0.0
+        val_running_con_loss = 0.0
         correct_val = 0
         total_val = 0
 
         with torch.no_grad():
             for features, labels, speaker_ids in val_loader:
                 features, labels, speaker_ids = features.to(device), labels.to(device), speaker_ids.to(device)
-                outputs, features = model(features)
-                contrastive_loss = criterion(features, labels, speaker_ids)
-                classification_loss = nn.CrossEntropyLoss()(outputs, labels)
-                val_loss = classification_loss + contrastive_loss
-                val_running_loss += val_loss.item() * features.size(0)
+                outputs, features_for_contrastive = model(features)
+
+                # 计算分类损失
+                cls_loss = classification_criterion(outputs, labels)
+                # 计算对比损失
+                con_loss = contrastive_criterion(features_for_contrastive, labels, speaker_ids)
+
+                # 计算总损失，使用相同的权重
+                val_loss_batch = cls_loss + contrastive_weight * con_loss
+
+                val_running_loss += val_loss_batch.item() * features.size(0)
+                val_running_cls_loss += cls_loss.item() * features.size(0)
+                val_running_con_loss += con_loss.item() * features.size(0)
                 correct_val += (outputs.argmax(1) == labels).sum().item()
                 total_val += labels.size(0)
 
         val_loss = val_running_loss / len(val_loader.dataset)
+        val_cls_loss = val_running_cls_loss / len(val_loader.dataset)
+        val_con_loss = val_running_con_loss / len(val_loader.dataset)
         val_accuracy = correct_val / total_val
 
         # 计算epoch耗时
         epoch_time = time.time() - epoch_start
 
-        # 打印结果
-        print(f"Epoch [{epoch + 1}/{epochs}]: Train Loss: {train_loss:.4f}, Train Acc: {train_accuracy:.4f}, Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.4f}, Time: {epoch_time:.2f}s")
+        # 打印结果 (可以加入单独的损失项)
+        print(f"Epoch [{epoch + 1}/{epochs}]: "
+              f"Train Loss: {train_loss:.4f} (Cls: {train_cls_loss:.4f}, Con: {train_con_loss:.4f}), Train Acc: {train_accuracy:.4f} | "
+              f"Val Loss: {val_loss:.4f} (Cls: {val_cls_loss:.4f}, Con: {val_con_loss:.4f}), Val Acc: {val_accuracy:.4f}, "
+              f"Time: {epoch_time:.2f}s")
 
+        # 日志记录也可以加入单独损失项
         log_results(log_file, train_loss, train_accuracy, val_loss, val_accuracy)
  
         # 确保模型输出目录存在
         os.makedirs(model_output, exist_ok=True)
-        model_path = os.path.join(model_output, f"npy_contrastive_model_{epoch + 1}.pth")
+        model_path = os.path.join(model_output, f"npy_contrastive_model_{epoch + 86}.pth")
         
         try: 
             torch.save(model.state_dict(), model_path)
@@ -433,10 +468,12 @@ if __name__ == "__main__":
 
     batch_size = 64
     epochs = 85
-    lr = 1e-4
+    lr = 1e-3
 
     target_length = 100  # 根据数据分布选择合适的值
     
+    contrastive_weight = 1
+
     train_loader, val_loader, test_loader, class_indices, speaker_ids = load_datasets(
         data_folder=data_folder,
         batch_size=batch_size,
@@ -444,4 +481,6 @@ if __name__ == "__main__":
     )
 
     model = CNN_RNN(num_classes=len(class_indices)).to(device)
-    train_model(model, train_loader, val_loader, device, model_output, log_file, epochs=epochs, lr=lr, pre_model=pre_model)
+    # 将权重传递给训练函数
+    train_model(model, train_loader, val_loader, device, model_output, log_file,
+                epochs=epochs, lr=lr, pre_model=pre_model, contrastive_weight=contrastive_weight)

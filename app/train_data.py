@@ -66,10 +66,10 @@ def plot_training_log(log_file):
     plt.legend()
     plt.grid()
 
-    # 显示图像
+    # 显示图像 
     plt.show()
 
 
 if __name__ == "__main__":
-    log_file = r"H:\github\EmoIdentify\app\model_visible\npy_cnn.txt"  # 指定训练日志路径
+    log_file = r"H:\github\EmoIdentify\app\model_visible\npy_contrastive.txt"  # 指定训练日志路径
     plot_training_log(log_file)
