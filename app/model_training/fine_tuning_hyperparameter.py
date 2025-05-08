@@ -233,10 +233,11 @@ def log_results(log_file, train_loss, train_acc, val_loss, val_acc):
                 f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}\n")
 
 def train_model(model, train_loader, val_loader, device, model_output, log_file,
-               epochs=10, lr=1e-3, resume_training=True, pre_model=None, contrastive_weight=0.5): # 添加 contrastive_weight 参数
+               epochs=10, lr=1e-3, resume_training=True, pre_model=None, contrastive_weight=0.5,
+               contrastive_temperature=0.07):  # 新增temperature参数
     # 使用修改后的损失函数
-    contrastive_criterion = NTXentLoss(temperature=0.3)
-    classification_criterion = nn.CrossEntropyLoss() # 分类损失
+    contrastive_criterion = NTXentLoss(temperature=contrastive_temperature)
+    classification_criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
     model.to(device)
 
@@ -400,29 +401,50 @@ if __name__ == "__main__":
     print(f"使用设备: {device}")
 
     data_folder = "../features/mel_npy/CREMA-D"
-    pre_model = "../models/npy_contrastive_model.pth"
-    model_output = "../models/npy_contrastive"
-    log_file = "../model_visible/npy_contrastive.txt"
-
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_folder = os.path.join(current_dir, data_folder)
-    pre_model = os.path.join(current_dir, pre_model)
-    model_output = os.path.join(current_dir, model_output)
-    log_file = os.path.join(current_dir, log_file)
 
     batch_size = 64
     epochs = 85
-    lr = 1e-3
-
     target_length = 100  # 根据数据分布选择合适的值
-    
-    contrastive_weight = 0.1
 
+    # 超参数搜索空间
+    lr_list = [1e-3, 1e-4]
+    temperature_list = [0.07, 0.1, 0.3]
+    contrastive_weight_list = [0.8, 0.5, 0.2, 0.1]
+
+    # 加载数据
     train_loader, val_loader, test_loader, class_indices, speaker_ids = load_datasets(
         data_folder=data_folder,
         batch_size=batch_size,
         target_length=target_length
     )
+
+    for lr in lr_list:
+        for temperature in temperature_list:
+            for contrastive_weight in contrastive_weight_list:
+                # 构建唯一的模型输出和日志目录
+                exp_name = f"lr{lr}_temp{temperature}_cw{contrastive_weight}"
+                model_output = os.path.join(current_dir, "../models/npy_contrastive", exp_name)
+                log_file = os.path.join(model_output, "train_log.txt")
+                os.makedirs(model_output, exist_ok=True)
+
+                print(f"\n==== 开始实验: {exp_name} ====")
+                print(f"模型输出目录: {model_output}")
+                print(f"日志文件: {log_file}")
+
+                # 初始化模型
+                model = CNN_RNN(num_classes=len(class_indices)).to(device)
+
+                # 训练
+                train_model(
+                    model, train_loader, val_loader, device,
+                    model_output, log_file,
+                    epochs=epochs, lr=lr, pre_model=None,
+                    contrastive_weight=contrastive_weight,
+                    # 传递temperature参数
+                    contrastive_temperature=temperature
+                )
 
     model = CNN_RNN(num_classes=len(class_indices)).to(device)
     # 将权重传递给训练函数
