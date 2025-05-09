@@ -21,7 +21,7 @@ def datasetProcessing(dataset_dir, output_dir):
 
     # 定义划分比例
     train_ratio = 0.85
-    val_ratio = 0.10
+    val_ratio = 0.12
 
     # 确保输出目录存在
     output_dataset_dir = os.path.join(output_dir, dataset_name)

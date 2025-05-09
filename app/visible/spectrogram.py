@@ -58,7 +58,7 @@ def spectrogram_base64(input_data, sr=16000):
 
     # 有坐标的图片（用于特征展示）：base64_with_coords
     plt.figure(figsize=(12, 6))
-    librosa.display.specshow(S, sr=sr, x_axis='time', y_axis='log', cmap='viridis')
+    librosa.display.specshow(S, sr=sr, x_axis='time', y_axis='log', cmap='jet')
     plt.title('Spectrogram')
     plt.xlabel('Time (s)')
     plt.ylabel('Frequency (Hz)')

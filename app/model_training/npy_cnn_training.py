@@ -45,7 +45,8 @@ def load_datasets(data_folder, batch_size=64, target_length=100):
     speaker_indices = train_dataset.speaker_ids
 
     # 保存类别映射
-    class_save_path = "../models/label_encoder/CREMA-D_CNN_class.json"
+    last_folder = os.path.basename(os.path.normpath(data_folder))
+    class_save_path = f"../models/label_encoder/{last_folder}_CNN_class.json"
     current_dir = os.path.dirname(os.path.abspath(__file__))
     class_save_path = os.path.join(current_dir, class_save_path)
     os.makedirs(os.path.dirname(class_save_path), exist_ok=True)
@@ -55,7 +56,7 @@ def load_datasets(data_folder, batch_size=64, target_length=100):
     print(f"类别标签映射已保存: {class_save_path}")
 
     # 保存说话人标签映射
-    speaker_save_path = "../models/label_encoder/CREMA-D_CNN_speaker.json"
+    speaker_save_path = f"../models/label_encoder/{last_folder}_CNN_speaker.json"
     speaker_save_path = os.path.join(current_dir, speaker_save_path)
     os.makedirs(os.path.dirname(speaker_save_path), exist_ok=True)
     with open(speaker_save_path, "w") as f:
@@ -354,7 +355,8 @@ def train_model(model, train_loader, val_loader, device, model_output, log_file,
         log_results(log_file, train_loss, train_acc, val_loss, val_acc)
 
         # --- 模型保存逻辑  ---
-        model_path = os.path.join(model_output, f"npy_cnn_model_{epoch + 1}.pth") 
+        last_folder = os.path.basename(os.path.normpath(model_output))
+        model_path = os.path.join(model_output, f"{last_folder}_npy_cnn_model_{epoch + 1}.pth")
 
         try:
             # --- 只保存模型 state_dict ---
@@ -368,10 +370,11 @@ if __name__ == "__main__":
     print(f"使用设备: {device}")
 
     # --- 配置参数 (与 contrastive 版本对齐) ---
-    data_folder = "../features/mel_npy/CREMA-D"
-    pre_model = "../models/npy_cnn_model.pth"
-    model_output = "../models/npy_cnn"
-    log_file = "../model_visible/npy_cnn.txt"
+    data_folder = "../features/mel_npy/CASIA"
+    last_folder = os.path.basename(os.path.normpath(data_folder))
+    pre_model = f"../models/npy_cnn_model.pth"
+    model_output = f"../models/{last_folder}_npy_cnn"
+    log_file = "result.txt"
 
     # --- 解析路径 (与 contrastive 版本对齐) ---
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -379,12 +382,12 @@ if __name__ == "__main__":
     if pre_model:
         pre_model = os.path.join(current_dir, pre_model)
     model_output = os.path.join(current_dir, model_output) # 解析目录路径
-    log_file = os.path.join(current_dir, log_file)
+    log_file = os.path.join(model_output, log_file)
 
     # --- 训练超参数  ---
     batch_size = 64
-    epochs = 85
-    lr = 1e-4
+    epochs = 70
+    lr = 1e-3
     target_length = 100
     num_workers = 0
 

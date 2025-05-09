@@ -105,7 +105,7 @@ def create_npy(input_folder, output_folder, sr=16000, n_fft=2048, hop_length=512
 
 if __name__ == '__main__':
     npy_output = '../features/mel_npy'
-    input_data = '../../ProcessedDataSet/Split/CREMA-D'
+    input_data = '../../ProcessedDataSet/Split/EmoDB'
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     npy_output = os.path.join(current_dir, npy_output)

@@ -8,7 +8,7 @@ import librosa
 import numpy as np
 import os
 
-def two_features_extract(input_data, sr=16000, n_mfcc=13):
+def two_features_extract(input_data, category=None, sr=16000, n_mfcc=13):
     """
     处理单个音频文件或内存中的音频数据，提取MFCC特征并按帧展开。
     input:
@@ -23,22 +23,20 @@ def two_features_extract(input_data, sr=16000, n_mfcc=13):
         # 判断输入类型
         if isinstance(input_data, str):
             y, _ = librosa.load(input_data, sr=sr)
+            file_name = os.path.basename(input_data)
         elif isinstance(input_data, np.ndarray):
             y = input_data
+            file_name = "array"
         else:
             raise ValueError("输入数据必须是文件路径 (str) 或音频数据 (NumPy 数组)。")
 
-        # 检查音频数据是否为空
         if len(y) == 0:
             print("音频数据为空，跳过...")
             return []
 
-        # 提取MFCC特征
         mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
-
-        # 将每一列（时间帧）转为一个特征列表
-        features_list = mfccs.T.tolist()
-
+        # 每帧加上文件名和类别
+        features_list = [[file_name, category] + frame.tolist() for frame in mfccs.T]
         return features_list
 
     except Exception as e:
@@ -109,3 +107,20 @@ def process_audio_folder(input_folder, output_folder, sr=16000, n_mfcc=13):
 
     # 返回保存特征文件的文件夹路径
     return output_dataset_folder
+
+
+if __name__ == "__main__":
+    output_folder = '../features/feature_extraction_2'
+    input_folder = '../../ProcessedDataSet/Split/CREMA-D'
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    output_folder = os.path.join(current_dir, output_folder)
+    input_folder = os.path.join(current_dir, input_folder)
+
+    # 调用特征提取函数
+    result_folder = process_audio_folder(input_folder, output_folder)
+    
+    if result_folder:
+        print(f"特征提取完成，结果保存在: {result_folder}")
+    else:
+        print("特征提取失败")

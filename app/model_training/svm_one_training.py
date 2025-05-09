@@ -114,10 +114,12 @@ def train_svm(train_file, val_file, test_file, model_output):
 
 # 修改主程序
 if __name__ == "__main__":
-    train_file = "../features/feature_extraction_1/CREMA-D/train.csv"
-    val_file = "../features/feature_extraction_1/CREMA-D/val.csv"
-    test_file = "../features/feature_extraction_1/CREMA-D/test.csv"
-    model_output = "../models/svm_model.joblib"
+    data_folder = "EmoDB"
+    feature_base = "../features/feature_extraction_1"
+    train_file = os.path.join(feature_base, data_folder, "train.csv")
+    val_file = os.path.join(feature_base, data_folder, "val.csv")
+    test_file = os.path.join(feature_base, data_folder, "test.csv")
+    model_output = f"../models/{data_folder}_svm_model.joblib"
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     train_file = os.path.join(current_dir, train_file)

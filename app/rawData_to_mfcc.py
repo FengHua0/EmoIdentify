@@ -2,6 +2,7 @@ import file_process.data_processing as data_processing
 import file_process.dataset_processing as dataset_processing
 import file_process.feature_extraction_1 as model_1
 import file_process.feature_extraction_2 as model_2
+import os
 
 input_data = '../RawDataSet/CREMA-D'
 processed_data = '../ProcessedDataSet/Processed'
@@ -23,5 +24,5 @@ if __name__ == '__main__':
     print(splited_data)
     feature_1 = model_1.process_audio_folder(splited_data, features_1)
     print(feature_1)
-    feature_2 = model_2.process_audio_folder(splited_data, features_2)
-    print(feature_2)
+    # feature_2 = model_2.process_audio_folder(splited_data, features_2)
+    # print(feature_2)

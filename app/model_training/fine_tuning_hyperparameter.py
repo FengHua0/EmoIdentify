@@ -400,51 +400,66 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"使用设备: {device}")
 
-    data_folder = "../features/mel_npy/CREMA-D"
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    data_folder = os.path.join(current_dir, data_folder)
-
+    # 定义多个数据集路径
+    data_folders = [
+        "../features/mel_npy/CREMA-D",
+        "../features/mel_npy/EmoDB",
+        "../features/mel_npy/CASIA"
+    ]
+    
     batch_size = 64
-    epochs = 85
-    target_length = 100  # 根据数据分布选择合适的值
-
+    target_length = 100
+    
     # 超参数搜索空间
     lr_list = [1e-3, 1e-4]
-    temperature_list = [0.07, 0.1, 0.3]
-    contrastive_weight_list = [0.8, 0.5, 0.2, 0.1]
+    temperature_list = [0.2, 0.3, 0.4]
+    contrastive_weight_list = [0.2, 0.1, 0.05]
 
-    # 加载数据
-    train_loader, val_loader, test_loader, class_indices, speaker_ids = load_datasets(
-        data_folder=data_folder,
-        batch_size=batch_size,
-        target_length=target_length
-    )
+    lr_to_epochs = {
+        1e-3: 70,
+        1e-4: 90
+    }
 
-    for lr in lr_list:
-        for temperature in temperature_list:
-            for contrastive_weight in contrastive_weight_list:
-                # 构建唯一的模型输出和日志目录
-                exp_name = f"lr{lr}_temp{temperature}_cw{contrastive_weight}"
-                model_output = os.path.join(current_dir, "../models/npy_contrastive", exp_name)
-                log_file = os.path.join(model_output, "train_log.txt")
-                os.makedirs(model_output, exist_ok=True)
+    # 外层循环遍历不同数据集
+    for data_folder in data_folders:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        data_folder = os.path.join(current_dir, data_folder)
+        
+        # 加载数据
+        train_loader, val_loader, test_loader, class_indices, speaker_ids = load_datasets(
+            data_folder=data_folder,
+            batch_size=batch_size,
+            target_length=target_length
+        )
 
-                print(f"\n==== 开始实验: {exp_name} ====")
-                print(f"模型输出目录: {model_output}")
-                print(f"日志文件: {log_file}")
+        # 内层循环遍历超参数组合
+        for lr in lr_list:
+            epochs = lr_to_epochs[lr]  # 根据学习率获取对应的epochs数
+            for temperature in temperature_list:
+                for contrastive_weight in contrastive_weight_list:
+                    # 构建唯一的模型输出和日志目录
+                    dataset_name = os.path.basename(os.path.normpath(data_folder))
+                    exp_name = f"{dataset_name}_lr{lr}_temp{temperature}_cw{contrastive_weight}"
+                    model_output = os.path.join(current_dir, "../models/npy_contrastive", exp_name)
+                    log_file = os.path.join(model_output, "train_log.txt")
+                    os.makedirs(model_output, exist_ok=True)
 
-                # 初始化模型
-                model = CNN_RNN(num_classes=len(class_indices)).to(device)
+                    print(f"\n==== 开始实验: {exp_name} ====")
+                    print(f"数据集: {data_folder}")
+                    print(f"模型输出目录: {model_output}")
+                    print(f"日志文件: {log_file}")
 
-                # 训练
-                train_model(
-                    model, train_loader, val_loader, device,
-                    model_output, log_file,
-                    epochs=epochs, lr=lr, pre_model=None,
-                    contrastive_weight=contrastive_weight,
-                    # 传递temperature参数
-                    contrastive_temperature=temperature
-                )
+                    # 初始化模型
+                    model = CNN_RNN(num_classes=len(class_indices)).to(device)
+
+                    # 训练
+                    train_model(
+                        model, train_loader, val_loader, device,
+                        model_output, log_file,
+                        epochs=epochs, lr=lr, pre_model=None,
+                        contrastive_weight=contrastive_weight,
+                        contrastive_temperature=temperature
+                    )
 
     model = CNN_RNN(num_classes=len(class_indices)).to(device)
     # 将权重传递给训练函数

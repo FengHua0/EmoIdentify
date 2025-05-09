@@ -375,7 +375,8 @@ def load_datasets(data_folder, batch_size=64, target_length=100):
     speaker_indices = train_dataset.speaker_ids
 
     # 保存类别映射
-    class_save_path = "../models/label_encoder/CREMA-D_CNN_class.json"
+    last_folder = os.path.basename(os.path.normpath(data_folder))
+    class_save_path = f"../models/label_encoder/{last_folder}_CNN_class.json"
     current_dir = os.path.dirname(os.path.abspath(__file__))
     class_save_path = os.path.join(current_dir, class_save_path)
     os.makedirs(os.path.dirname(class_save_path), exist_ok=True)
@@ -385,7 +386,7 @@ def load_datasets(data_folder, batch_size=64, target_length=100):
     print(f"类别标签映射已保存: {class_save_path}")
 
     # 保存说话人标签映射
-    speaker_save_path = "../models/label_encoder/CREMA-D_CNN_speaker.json"
+    speaker_save_path = f"../models/label_encoder/{last_folder}_CNN_speaker.json"
     speaker_save_path = os.path.join(current_dir, speaker_save_path)
     os.makedirs(os.path.dirname(speaker_save_path), exist_ok=True)
     with open(speaker_save_path, "w") as f:
@@ -399,16 +400,17 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"使用设备: {device}")
 
-    data_folder = "../features/mel_npy/CREMA-D"
+    data_folder = "../features/mel_npy/EmoDB"
+    last_folder = os.path.basename(os.path.normpath(data_folder))
     pre_model = "../models/npy_contrastive_model.pth"
-    model_output = "../models/npy_contrastive"
-    log_file = "../model_visible/npy_contrastive.txt"
+    model_output = f"../models/{last_folder}_npy_contrastive"
+    log_file = "result.txt"
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_folder = os.path.join(current_dir, data_folder)
     pre_model = os.path.join(current_dir, pre_model)
     model_output = os.path.join(current_dir, model_output)
-    log_file = os.path.join(current_dir, log_file)
+    log_file = os.path.join(model_output, log_file)
 
     batch_size = 64
     epochs = 85

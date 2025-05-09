@@ -43,19 +43,32 @@ class EmotionDataset(Dataset):
 class EmotionClassifier(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes):
         super(EmotionClassifier, self).__init__()
-        self.rnn = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.rnn = nn.LSTM(input_size, hidden_size, batch_first=True, num_layers=2, bidirectional=True)
+        self.bn1 = nn.BatchNorm1d(hidden_size * 2)  # 双向LSTM输出是hidden_size*2
         self.fc = nn.Sequential(
-            nn.Linear(hidden_size, 64),
+            nn.Linear(hidden_size * 2, 128),
             nn.ReLU(),
-            nn.Dropout(0.5),
+            nn.BatchNorm1d(128),
+            nn.Dropout(0.4),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.BatchNorm1d(64),
+            nn.Dropout(0.3),
             nn.Linear(64, num_classes)
         )
 
     def forward(self, x, lengths):
-        # 使用 pack_padded_sequence 处理变长序列
         packed_input = pack_padded_sequence(x, lengths.cpu(), batch_first=True, enforce_sorted=False)
         packed_output, (hn, _) = self.rnn(packed_input)
-        out = self.fc(hn[-1])  # 使用最后时间步的隐藏状态进行分类
+        
+        # 处理双向LSTM的输出
+        if self.rnn.bidirectional:
+            hn = torch.cat((hn[-2], hn[-1]), dim=1)
+        else:
+            hn = hn[-1]
+            
+        hn = self.bn1(hn)
+        out = self.fc(hn)
         return out
 
 
@@ -91,13 +104,18 @@ def load_and_group_features(data_folder, file_name):
     joblib.dump(label_encoder, encoder_path)
     print(f"LabelEncoder 已保存到: {encoder_path}")
 
-    # 按 file_name 分组，聚合特征
+    # 按 file_name 和 category 双重分组，确保文件名和类别一致
     grouped_features = []
     grouped_labels = []
-    for file_name, group in df.groupby("file_name"):
+    groups = df.groupby(["file_name", "category"])
+    for (file_name, category), group in groups:
         group_features = group.drop(columns=["file_name", "category"]).values
         grouped_features.append(group_features)
         grouped_labels.append(labels[group.index[0]])  # 同一文件的标签相同
+    
+    print(f"共找到 {len(groups)} 个文件-类别组合")  # 添加打印分组数量
+    print(f"实际处理样本数: {len(grouped_features)}")  # 添加打印实际样本数
+
 
     # 对特征进行标准化
     scaler = StandardScaler()
@@ -184,26 +202,28 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
         # 记录日志
         log_results(log_file, train_loss, train_acc, val_loss, val_acc)
 
-        # 保存最优模型
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            print(f"保存最优模型 (Epoch {epoch + 1}) 到: {model_output}")
-            torch.save(model.state_dict(), model_output)
+        # 获取文件夹名
+        last_folder = os.path.basename(os.path.normpath(input_folder))
+        model_path = os.path.join(model_output, f"rnn2_epoch_{epoch + 1}.pth")
+        print(f"保存模型 (Epoch {epoch + 1}) 到: {model_path}")
+        torch.save(model.state_dict(), model_path)
 
 
 # 主程序
 if __name__ == "__main__":
     # 用户提供的路径
-    input_folder = "../features/feature_extraction_2/CREMA-D"  # 包含 train.csv, val.csv, test.csv 的文件夹
-    model_output = "../models/rnn_2.pth"  # 模型保存路径
-    pretrained_model_path = "../models/rnn_2.pth"  # 预训练模型文件
-    log_file = "../model_visible/rnn.txt"
+    input_folder = "../features/feature_extraction_2/CASIA"  # 包含 train.csv, val.csv, test.csv 的文件夹
+    last_folder = os.path.basename(os.path.normpath(input_folder))
+    model_output = f"../models/{last_folder}_rnn_2"  # 现在是文件夹路径
+    pretrained_model_path = "../models/rnn_2.pth"
+    log_file = "result.txt"
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     input_folder = os.path.join(current_dir, input_folder)
     model_output = os.path.join(current_dir, model_output)
+    os.makedirs(model_output, exist_ok=True)  # 确保保存文件夹存在
     pretrained_model_path = os.path.join(current_dir, pretrained_model_path)
-    log_file = os.path.join(current_dir, log_file)
+    log_file = os.path.join(model_output, log_file)
 
     # 加载和分组数据
     train_features, train_labels, label_encoder = load_and_group_features(input_folder, "train.csv")
@@ -228,5 +248,5 @@ if __name__ == "__main__":
 
     # 训练模型
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, log_file, epochs=10,
+    train_model(model, criterion, optimizer, train_loader, val_loader, device, model_output, log_file, epochs=50,
                 pretrained_model_path=pretrained_model_path)
