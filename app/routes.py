@@ -32,6 +32,8 @@ def predict():
 
         # 获取选择的模型
         model_type = request.form.get('model')
+        dataset_name = request.form.get('dataset')
+        print(dataset_name)
         if not model_type:
             return jsonify({'error': 'No model selected'}), 400
 
@@ -81,6 +83,7 @@ def predict():
 
         # 执行预测
         mfcc_feature, _ = extract_mfcc(wav_bytes)
+        model.set_dataset(dataset_name)  # Set the dataset using the new meth
         result = model.predict()
         if result is None:
             return jsonify({'error': 'Prediction failed'}), 500

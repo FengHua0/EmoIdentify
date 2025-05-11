@@ -62,6 +62,7 @@ export function initializeUploader() {
         const audioFile = audioFileInput.files[0];
         const recordedBlob = window.getRecordedBlob(); // 获取录音 Blob
         const modelSelection = document.getElementById('modelSelection').value; // 获取选择的模型
+        const datasetSelection = document.getElementById('datasetSelection').value; // 获取选择的数据集
 
         // 检查是否选择了文件或录制了音频
         if (!audioFile && !recordedBlob) {
@@ -78,6 +79,7 @@ export function initializeUploader() {
         }
 
         formData.append('model', modelSelection); // 添加用户选择的模型类型
+        formData.append('dataset', datasetSelection); // 添加用户选择的数据集类型
 
         // 更新状态：上传中
         document.getElementById('result').textContent = '正在上传文件...';

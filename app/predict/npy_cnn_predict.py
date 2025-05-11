@@ -20,15 +20,17 @@ class SingleToThreeChannels:
 
 @register_model('npy_cnn')
 class NpyCNN(BaseModel):
-    def __init__(self, processed_audio, sr):
+    def __init__(self, processed_audio, sr, dataset="CASIA"):
         """
         初始化基于.npy输入的CNN-RNN预测器
         :param processed_audio: 预处理后的音频数据(bytes)
         :param sr: 采样率(未使用)
+        :param dataset: 数据集名称，默认为CASIA
         """
         super().__init__(processed_audio, sr)
-        self.MODEL_PATH = "models/npy_cnn_model.pth"
-        self.LABEL_ENCODER_PATH = "models/label_encoder/npy_CREMA-D_CNN_class.json"
+        self.dataset = dataset
+        self.MODEL_PATH = f"models/{self.dataset}_npy_cnn_model.pth"
+        self.LABEL_ENCODER_PATH = f"models/label_encoder/{self.dataset}_CNN_class.json"
 
         # --- 添加模型参数 ---
         self.n_mels = 128
@@ -200,3 +202,23 @@ class NpyCNN(BaseModel):
         except Exception as e:
             print(f"预测时出错: {e}")
             return {'error': str(e)}
+
+    def set_dataset(self, dataset):
+        """设置数据集并重新加载相关资源"""
+        if dataset == self.dataset:
+            return  # 如果数据集相同则不需要重新加载
+        
+        self.dataset = dataset
+        # 更新路径
+        self.MODEL_PATH = f"models/{self.dataset}_npy_contrastive_model.pth"
+        self.LABEL_ENCODER_PATH = f"models/label_encoder/{self.dataset}_CNN_class.json"
+        self.SPEAKER_ENCODER_PATH = f"models/label_encoder/{self.dataset}_CNN_speaker.json"
+        
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.MODEL_PATH = os.path.join(current_dir, self.MODEL_PATH)
+        self.LABEL_ENCODER_PATH = os.path.join(current_dir, self.LABEL_ENCODER_PATH)
+        self.SPEAKER_ENCODER_PATH = os.path.join(current_dir, self.SPEAKER_ENCODER_PATH)
+        
+        # 重新加载模型和映射
+        self.load_label_mapping()
+        self.load_model()
