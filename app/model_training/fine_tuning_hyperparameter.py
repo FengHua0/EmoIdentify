@@ -24,13 +24,22 @@ class NPYDataset(Dataset):
         self.target_length = target_length
 
         # 遍历目录，加载每个文件并提取标签
+        # 获取数据集名称
+        dataset_name = os.path.basename(os.path.normpath(data_folder))
+        
         for label, emotion_folder in enumerate(os.listdir(self.data_folder)):
             emotion_path = os.path.join(self.data_folder, emotion_folder)
             if os.path.isdir(emotion_path):
                 for file_name in os.listdir(emotion_path):
                     if file_name.endswith(".npy"):
-                        # 提取说话人ID (假设ID嵌入文件名，形如 1001_DFA_ANG_XX.npy)
-                        speaker_id = file_name.split('_')[0]
+                        # 根据数据集类型提取说话人ID
+                        if dataset_name == "EmoDB":
+                            # EmoDB: 取前两个数字作为说话人ID
+                            speaker_id = file_name[:2]
+                        else:
+                            # CREMA-D和CASIA: 取第一个下划线前的内容
+                            speaker_id = file_name.split('_')[0]
+                            
                         self.samples.append((os.path.join(emotion_path, file_name), label, speaker_id))
                         if speaker_id not in self.speaker_ids:
                             self.speaker_ids[speaker_id] = len(self.speaker_ids)
@@ -327,19 +336,19 @@ def train_model(model, train_loader, val_loader, device, model_output, log_file,
               f"Val Loss: {val_loss:.4f} (Cls: {val_cls_loss:.4f}, Con: {val_con_loss:.4f}), Val Acc: {val_accuracy:.4f}, "
               f"Time: {epoch_time:.2f}s")
 
-        # 日志记录也可以加入单独损失项
-        log_results(log_file, train_loss, train_accuracy, val_loss, val_accuracy)
+        # # 日志记录也可以加入单独损失项
+        # log_results(log_file, train_loss, train_accuracy, val_loss, val_accuracy)
  
-        # 确保模型输出目录存在
-        os.makedirs(model_output, exist_ok=True)
-        model_path = os.path.join(model_output, f"npy_contrastive_model_{epoch + 1}.pth")
+        # # 确保模型输出目录存在
+        # os.makedirs(model_output, exist_ok=True)
+        # model_path = os.path.join(model_output, f"npy_contrastive_model_{epoch + 1}.pth")
         
-        try: 
-            torch.save(model.state_dict(), model_path)
-            print(f"模型已保存到: {model_path}")
-        except Exception as e:
-            print(f"保存模型时出错: {e}")
-            continue
+        # try: 
+        #     torch.save(model.state_dict(), model_path)
+        #     print(f"模型已保存到: {model_path}")
+        # except Exception as e:
+        #     print(f"保存模型时出错: {e}")
+        #     continue
 
 def load_datasets(data_folder, batch_size=64, target_length=100):
     """
@@ -374,9 +383,9 @@ def load_datasets(data_folder, batch_size=64, target_length=100):
     
     # 提取说话人ID（从文件名的开头数字）
     speaker_indices = train_dataset.speaker_ids
-
+    last_folder = os.path.basename(os.path.normpath(data_folder))
     # 保存类别映射
-    class_save_path = "../models/label_encoder/CREMA-D_CNN_class.json"
+    class_save_path = f"../models/label_encoder/{last_folder}_CNN_class.json"
     current_dir = os.path.dirname(os.path.abspath(__file__))
     class_save_path = os.path.join(current_dir, class_save_path)
     os.makedirs(os.path.dirname(class_save_path), exist_ok=True)
@@ -386,7 +395,7 @@ def load_datasets(data_folder, batch_size=64, target_length=100):
     print(f"类别标签映射已保存: {class_save_path}")
 
     # 保存说话人标签映射
-    speaker_save_path = "../models/label_encoder/CREMA-D_CNN_speaker.json"
+    speaker_save_path = f"../models/label_encoder/{last_folder}_CNN_speaker.json"
     speaker_save_path = os.path.join(current_dir, speaker_save_path)
     os.makedirs(os.path.dirname(speaker_save_path), exist_ok=True)
     with open(speaker_save_path, "w") as f:
@@ -402,19 +411,21 @@ if __name__ == "__main__":
 
     # 定义多个数据集路径
     data_folders = [
-        "../features/mel_npy/CREMA-D",
+        # "../features/mel_npy/CASIA",
         "../features/mel_npy/EmoDB",
-        "../features/mel_npy/CASIA"
+        # "../features/mel_npy/CREMA-D"
     ]
     
     batch_size = 64
     target_length = 100
     
-    # 超参数搜索空间
-    lr_list = [1e-3, 1e-4]
-    temperature_list = [0.2, 0.3, 0.4]
-    contrastive_weight_list = [0.2, 0.1, 0.05]
-
+    # # 超参数搜索空间
+    # lr_list = [1e-3, 1e-4]
+    # temperature_list = [0.2, 0.3, 0.4]
+    # contrastive_weight_list = [0.2, 0.1, 0.05]
+    lr_list = [1e-3]
+    temperature_list = [0.4]
+    contrastive_weight_list = [0.1]
     lr_to_epochs = {
         1e-3: 70,
         1e-4: 90

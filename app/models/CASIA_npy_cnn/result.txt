@@ -32,6 +32,7 @@ Train Loss=0.0754, Train Acc=0.9814 | Val Loss=0.6910, Val Acc=0.8125
 Train Loss=0.0652, Train Acc=0.9863 | Val Loss=0.6710, Val Acc=0.7986
 Train Loss=0.0437, Train Acc=0.9941 | Val Loss=0.5553, Val Acc=0.8472
 Train Loss=0.0256, Train Acc=0.9980 | Val Loss=0.5163, Val Acc=0.8611
+
 Train Loss=0.0332, Train Acc=0.9931 | Val Loss=0.5359, Val Acc=0.8403
 Train Loss=0.0262, Train Acc=0.9931 | Val Loss=0.4761, Val Acc=0.8819
 Train Loss=0.0417, Train Acc=0.9922 | Val Loss=0.7232, Val Acc=0.7986

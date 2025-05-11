@@ -81,13 +81,22 @@ class NPYDataset(Dataset):
         self.target_length = target_length
 
         # 遍历目录，加载每个文件并提取标签
+        # 获取数据集名称
+        dataset_name = os.path.basename(os.path.normpath(data_folder))
+        
         for label, emotion_folder in enumerate(os.listdir(self.data_folder)):
             emotion_path = os.path.join(self.data_folder, emotion_folder)
             if os.path.isdir(emotion_path):
                 for file_name in os.listdir(emotion_path):
                     if file_name.endswith(".npy"):
-                        # 提取说话人ID (假设ID嵌入文件名，形如 1001_DFA_ANG_XX.npy)
-                        speaker_id = file_name.split('_')[0]
+                        # 根据数据集类型提取说话人ID
+                        if dataset_name == "EmoDB":
+                            # EmoDB: 取前两个数字作为说话人ID
+                            speaker_id = file_name[:2]
+                        else:
+                            # CREMA-D和CASIA: 取第一个下划线前的内容
+                            speaker_id = file_name.split('_')[0]
+                            
                         self.samples.append((os.path.join(emotion_path, file_name), label, speaker_id))
                         if speaker_id not in self.speaker_ids:
                             self.speaker_ids[speaker_id] = len(self.speaker_ids)
@@ -356,7 +365,7 @@ def train_model(model, train_loader, val_loader, device, model_output, log_file,
 
         # --- 模型保存逻辑  ---
         last_folder = os.path.basename(os.path.normpath(model_output))
-        model_path = os.path.join(model_output, f"{last_folder}_npy_cnn_model_{epoch + 1}.pth")
+        model_path = os.path.join(model_output, f"{last_folder}_model_{epoch + 1}.pth")
 
         try:
             # --- 只保存模型 state_dict ---
@@ -370,7 +379,7 @@ if __name__ == "__main__":
     print(f"使用设备: {device}")
 
     # --- 配置参数 (与 contrastive 版本对齐) ---
-    data_folder = "../features/mel_npy/CASIA"
+    data_folder = "../features/mel_npy/EmoDB"
     last_folder = os.path.basename(os.path.normpath(data_folder))
     pre_model = f"../models/npy_cnn_model.pth"
     model_output = f"../models/{last_folder}_npy_cnn"

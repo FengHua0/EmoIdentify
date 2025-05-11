@@ -71,5 +71,5 @@ def plot_training_log(log_file):
 
 
 if __name__ == "__main__":
-    log_file = r"H:\github\EmoIdentify\app\models\EmoDB_npy_cnn\result.txt"  # 指定训练日志路径
+    log_file = r"H:\github\EmoIdentify\app\models\npy_contrastive\CREMA-D_lr0.001_temp0.2_cw0.2  0.63 √\train_log.txt" # 指定训练日志路径
     plot_training_log(log_file)

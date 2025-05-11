@@ -142,32 +142,33 @@ def get_base64(fig):
     buf.close()
     return img_base64
 
-def generate_paths(model_type):
+def generate_paths(model_type, dataset_name="CREMA-D"):
     """
-    根据模型类型生成相关路径
+    根据模型类型和数据集名称生成相关路径
     Args:
         model_type: 模型类型 ('npy_cnn', 'npy_contrastive')
+        dataset_name: 数据集名称 ('CREMA-D', 'EmoDB', 'CASIA')
     Returns:
         dict: 包含各种路径的字典
     """
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    base_model_dir = os.path.join(current_dir, "../models") # 指向项目根目录下的 models
-    base_features_dir = os.path.join(current_dir, "../features") # 指向项目根目录下的 features
-    base_visible_dir = os.path.join(current_dir, "../model_visible") # 指向项目根目录下的 model_visible
-    base_clustering_dir = os.path.join(current_dir, "../clustering_feature") # 指向项目根目录下的 clustering_feature
+    base_model_dir = os.path.join(current_dir, "../models") 
+    base_features_dir = os.path.join(current_dir, "../features")
+    base_visible_dir = os.path.join(current_dir, "../model_visible")
+    base_clustering_dir = os.path.join(current_dir, "../clustering_feature")
 
     paths = {
-        'data_folder': os.path.join(base_features_dir, "mel_npy/CREMA-D"), # 统一使用 npy 数据
-        'model_path': None, # 将在下面设置
+        'data_folder': os.path.join(base_features_dir, f"mel_npy/{dataset_name}"),  # 根据数据集名称选择路径
+        'model_path': None,
         'output_dir': base_visible_dir,
         'features_dir': base_clustering_dir
     }
 
     if model_type == 'npy_cnn':
-        paths['model_path'] = os.path.join(base_model_dir, "npy_cnn_model.pth")
+        paths['model_path'] = os.path.join(base_model_dir, f"{dataset_name}_npy_cnn_model.pth")
 
     elif model_type == 'npy_contrastive':
-        paths['model_path'] = os.path.join(base_model_dir, "npy_contrastive_model.pth")
+        paths['model_path'] = os.path.join(base_model_dir, f"npy_contrastive_model.pth")
     else:
         raise ValueError(f"未知的模型类型: {model_type}")
 
@@ -245,32 +246,74 @@ def load_model_and_data(model_type, data_folder, model_path, batch_size=64):
     model.eval()  # 设置为评估模式
     return model, test_loader, class_indices, speaker_indices, device
 
-def extract_features(model, data_loader, device):
+def extract_features(model, root_folder, device, target_length=100):
     """
-    从数据加载器中提取特征、标签和说话人ID
+    遍历指定路径下所有 .npy 文件，提取特征。
+    Args:
+        model: 加载好的模型
+        root_folder: 数据集根目录（包含 train/val/test 子目录）
+        device: PyTorch 设备
+        target_length: 特征时间维度长度（默认 100）
+    Returns:
+        features: 所有样本提取的特征
+        labels: 对应情感标签索引
+        speaker_ids: 对应说话人索引
     """
-    all_features = []
-    all_labels = []
-    all_speaker_ids = []
+    features = []
+    labels = []
+    speaker_ids = []
     model.eval()
+
+    emotion_to_label = {}
+    speaker_to_id = {}
+    emotion_index = 0
+    speaker_index = 0
+
     with torch.no_grad():
-        for i, (inputs, labels, speaker_ids) in enumerate(data_loader):
-            inputs = inputs.to(device)
-            # 模型 forward 方法返回 (outputs, features)
-            _, features = model(inputs)
+        for split in ['train', 'val', 'test']:
+            split_dir = os.path.join(root_folder, split)
+            if not os.path.exists(split_dir):
+                continue
+            for emotion in os.listdir(split_dir):
+                emotion_dir = os.path.join(split_dir, emotion)
+                if not os.path.isdir(emotion_dir):
+                    continue
+                if emotion not in emotion_to_label:
+                    emotion_to_label[emotion] = emotion_index
+                    emotion_index += 1
+                for file in os.listdir(emotion_dir):
+                    if not file.endswith('.npy'):
+                        continue
+                    file_path = os.path.join(emotion_dir, file)
+                    data = np.load(file_path)
+                    if data.shape[1] > target_length:
+                        data = data[:, :target_length]
+                    elif data.shape[1] < target_length:
+                        pad_width = target_length - data.shape[1]
+                        data = np.pad(data, ((0, 0), (0, pad_width)), mode='constant')
+                    
+                    # 修改这里：确保数据类型为float32
+                    tensor = torch.from_numpy(data.astype(np.float32)).unsqueeze(0).repeat(3, 1, 1).unsqueeze(0).to(device)
+                    _, feat = model(tensor)
+                    features.append(feat.squeeze(0).cpu().numpy())
 
-            all_features.append(features.cpu().numpy())
-            all_labels.append(labels.cpu().numpy())
-            all_speaker_ids.append(speaker_ids.cpu().numpy()) # 假设 speaker_ids 已经是数值 ID
+                    labels.append(emotion_to_label[emotion])
 
-            print(f"\r提取特征: Batch {i+1}/{len(data_loader)}", end="")
-        print("\n特征提取完成.")
+                    # 修改说话人ID提取逻辑
+                    if "EmoDB" in root_folder:
+                        # 对于EmoDB数据集，提取文件名中的前两个数字作为说话人ID
+                        speaker_id = ''.join(filter(str.isdigit, file))[:2]
+                    else:
+                        # 其他数据集保持原逻辑
+                        speaker_id = file.split('_')[0]
+                    
+                    if speaker_id not in speaker_to_id:
+                        speaker_to_id[speaker_id] = speaker_index
+                        speaker_index += 1
+                    speaker_ids.append(speaker_to_id[speaker_id])
 
-    all_features = np.concatenate(all_features, axis=0)
-    all_labels = np.concatenate(all_labels, axis=0)
-    all_speaker_ids = np.concatenate(all_speaker_ids, axis=0)
+    return np.array(features), np.array(labels), np.array(speaker_ids)
 
-    return all_features, all_labels, all_speaker_ids
 
 # 身份信息定量分析函数
 def _calculate_speaker_distances(features, speaker_ids):
@@ -356,12 +399,13 @@ def quantitative_speaker_analysis(features, speaker_ids, labels=None, class_indi
 # 主程序入口
 if __name__ == "__main__":
 
-    model_type = "npy_contrastive"  # 在这里直接指定模型类型: 'npy_cnn' 或 'npy_contrastive'
+    model_type = "npy_contrastive"  # 模型类型："npy_cnn" 或 "npy_contrastive"
+    dataset_name = "EmoDB"  # 可以修改为： "CREMA-D" "EmoDB" 或 "CASIA"
     batch_size = 64
 
-    # 1. 生成路径 (使用硬编码的 model_type)
-    paths = generate_paths(model_type)
-    features_filename = f"{model_type}_features.npz"
+    # 1. 生成路径 (传入数据集名称)
+    paths = generate_paths(model_type, dataset_name=dataset_name)
+    features_filename = f"{model_type}_{dataset_name}_features.npz"  # 文件名包含数据集名称
     features_save_path = os.path.join(paths['features_dir'], features_filename)
     features_save_path = os.path.abspath(features_save_path).replace("/", "\\")
 
@@ -417,7 +461,7 @@ if __name__ == "__main__":
         # 3. 提取特征
         print("-" * 30)
         print("开始提取特征...")
-        features, labels, speaker_ids = extract_features(model, test_loader, device)
+        features, labels, speaker_ids = extract_features(model, paths['data_folder'], device)
 
         # 4. 保存特征
         os.makedirs(paths['features_dir'], exist_ok=True)
@@ -450,7 +494,7 @@ if __name__ == "__main__":
         )
 
         # 修改输出文件名格式，移除 method
-        output_filename = f"{model_type}_clusters.png"
+        output_filename = f"{dataset_name}_{model_type}_clusters.png"
         output_save_path = os.path.join(paths['output_dir'], output_filename)
         output_save_path = os.path.abspath(output_save_path).replace("/", "\\")
 
