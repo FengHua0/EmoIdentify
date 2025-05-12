@@ -125,3 +125,8 @@ def predict():
     except Exception as e:
         print(f"[ERROR] 预测过程中发生异常: {str(e)}")  # 新增调试信息
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({'status': 'ok'}), 200
