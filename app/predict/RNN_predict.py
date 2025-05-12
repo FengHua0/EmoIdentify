@@ -4,6 +4,9 @@ import joblib
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
+import numpy as np
+import os
+
 
 from app.predict.Base_model import BaseModel
 from app.predict.factory_registry import register_model
@@ -12,14 +15,15 @@ from app.model_training.RNN_two_training import EmotionClassifier
 
 @register_model('rnn')
 class RNN(BaseModel):
-    def __init__(self, processed_audio, sr):
+    def __init__(self, processed_audio, sr, dataset="CASIA"):
         super().__init__(processed_audio, sr)
-        self.MODEL_PATH = "models/rnn_2.pth"
-        self.ENCODER_PATH = "models/label_encoder/CREMA-D_label_encoder.joblib"
+        self.dataset = dataset
+        self.MODEL_PATH = f"models/{self.dataset}_rnn2.pth"
+        self.ENCODER_PATH = f"models/label_encoder/{self.dataset}_RNN_label_encoder.joblib"
 
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.MODEL_PATH = os.path.join(current_dir, self.MODEL_PATH)
-        self.LABEL_ENCODER_PATH = os.path.join(current_dir, self.LABEL_ENCODER_PATH)
+        self.ENCODER_PATH = os.path.join(current_dir, self.ENCODER_PATH)
         
         self.model = None
         self.label_encoder = None
@@ -33,9 +37,9 @@ class RNN(BaseModel):
             # 加载 LabelEncoder
             self.label_encoder = joblib.load(self.ENCODER_PATH)
 
-            # 实例化模型
-            self.model = EmotionClassifier(input_size=13, hidden_size=128, num_classes=len(self.label_encoder.classes_))
-            self.model.load_state_dict(torch.load(self.MODEL_PATH, map_location=torch.device('cpu')))
+            # 实例化模型 - 修改hidden_size与训练时一致
+            self.model = EmotionClassifier(input_size=13, hidden_size=256, num_classes=len(self.label_encoder.classes_))
+            self.model.load_state_dict(torch.load(self.MODEL_PATH, map_location=torch.device('cpu'), weights_only=True))
             self.model.eval()  # 设置模型为评估模式
             print("RNN 模型和编码器加载成功。")
         except Exception as e:
@@ -48,7 +52,7 @@ class RNN(BaseModel):
         提取特征的方法
         """
         try:
-            self.features = two_features_extract(self.processed_audio, self.sr)
+            self.features = two_features_extract(self.processed_audio, sr=self.sr)
             if not self.features:
                 raise ValueError("特征提取失败。")
             return self.features
@@ -98,14 +102,20 @@ class RNN(BaseModel):
 
         try:
             features = self.extract_features()
+            
+            if features is None:
+                print("[ERROR] 特征提取返回None")
+                return {'error': '特征提取失败'}
             # 确保特征是二维列表或数组
             if not isinstance(features, (list, tuple)) or not isinstance(features[0], (list, tuple)):
                 raise ValueError("输入数据必须是一个二维列表或数组！")
-
+                
             # 将每行特征转换为 PyTorch 张量
-            features_tensor = [torch.tensor(f, dtype=torch.float32) for f in features]
-
-            # 获取序列长度（只有一个样本，因此长度是一个标量）
+            # 只保留MFCC特征部分（去掉前两列）
+            print(features)
+            features_tensor = [torch.tensor(f[2:], dtype=torch.float32) for f in features]
+            
+            # 获取序列长度
             lengths = torch.tensor([len(features_tensor)], dtype=torch.long)
 
             # 使用 pad_sequence 填充变长序列 (batch_size = 1)
@@ -113,27 +123,44 @@ class RNN(BaseModel):
 
             # 模型预测
             with torch.no_grad():
-                outputs = self.model(padded_features, lengths)  # 调用模型
-                y_pred = outputs.argmax(dim=1).cpu().numpy()  # 获取预测类别（数字）
-
-            # 将数字类别转换为情感名称
-            predicted_emotion = self.label_encoder.inverse_transform([y_pred[0]])[0]  # 转换为情感名称
-
+                outputs = self.model(padded_features, lengths)
+                y_pred = outputs.argmax(dim=1).cpu().numpy()
+            # 标签反编码，保证与训练一致
+            y_pred = np.array(y_pred).astype(int).flatten()
+            predicted_emotion = self.label_encoder.inverse_transform(y_pred)[0]
             # 绘制置信度图并返回图像的 Base64 编码
             confidence_base64 = self.plot_confidence(outputs)
+            if confidence_base64 is None:
+                print("[WARNING] 置信度图生成失败")
 
-            confidence = {
-                'feature_name': 'Confidence',  # 数据的名称
-                'base64': confidence_base64  # 图像的 Base64 编码
-            }
-
-            # 返回预测结果和置信度图
+            # 构造返回结果
             result = {
-                'predicted_category': predicted_emotion,  # 返回情感名称
-                'confidence': confidence  # 返回置信度图
+                'predicted_category': predicted_emotion,
+                'confidence': {
+                    'feature_name': 'Confidence',
+                    'base64': confidence_base64 if confidence_base64 else ''
+                }
             }
+            
             return result
 
         except Exception as e:
             print(f"预测时出错: {e}")
             return {'error': str(e)}
+
+    def set_dataset(self, dataset):
+        """设置数据集并重新加载相关资源"""
+        if dataset == self.dataset:
+            return  # 如果数据集相同则不需要重新加载
+        
+        self.dataset = dataset
+        # 更新路径
+        self.MODEL_PATH = f"models/{self.dataset}_rnn2.pth"
+        self.ENCODER_PATH = f"models/label_encoder/{self.dataset}_RNN_label_encoder.joblib"
+        
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.MODEL_PATH = os.path.join(current_dir, self.MODEL_PATH)
+        self.ENCODER_PATH = os.path.join(current_dir, self.ENCODER_PATH)
+        
+        # 重新加载模型和映射
+        self.load_model()

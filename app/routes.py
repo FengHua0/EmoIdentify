@@ -24,23 +24,27 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    try:
+    try:   
         # 检查上传文件是否存在
         audio_file = request.files.get('audio')
         if not audio_file or audio_file.filename == '':
+            print("[ERROR] 没有上传音频文件")  # 新增调试信息
             return jsonify({'error': 'No audio file uploaded'}), 400
 
-        # 获取选择的模型
+        # 获取选择的模型和数据集
         model_type = request.form.get('model')
         dataset_name = request.form.get('dataset')
-        print(dataset_name)
+        print(f"[DEBUG] 获取到模型类型: {model_type}, 数据集: {dataset_name}")  # 新增调试信息
+        
         if not model_type:
+            print("[ERROR] 没有选择模型")  # 新增调试信息
             return jsonify({'error': 'No model selected'}), 400
 
         # 读取音频文件
         audio_bytes = audio_file.read()
         file_extension = audio_file.filename.rsplit('.', 1)[1].lower()
-
+        print(f"[DEBUG] 音频文件格式: {file_extension}")  # 新增调试信息
+        
         # 处理音频文件，转换为 wav 格式
         if file_extension == 'webm':
             # webm 转换为 wav 格式
@@ -54,51 +58,59 @@ def predict():
             wav_bytes = audio_bytes  # 对于 wav 或 mp3 格式，直接使用原始字节数据
         else:
             return jsonify({'error': 'Invalid audio file format. Please upload wav, mp3, or webm files.'}), 400
-
+        
         # 预处理
         wav_bytes = preprocess_audio(y)
-
+        
         # 特征提取和可视化
         spectrogram, _ = spectrogram_base64(wav_bytes)
         # linear_spectrogram = linear_spectrogram_base64(wav_bytes)
         waveform = waveform_base64(wav_bytes)
-
+        
         if wav_bytes is None:
             return jsonify({'error': 'Failed to preprocess audio'}), 500
         # 使用工厂模式获取模型实例
         try:
+            print(f"[DEBUG] 正在创建模型实例: {model_type}")  # 新增调试信息
             model = model_factory(model_type, wav_bytes, sr)
             
             # 如果是SVM或RNN模型，执行特征提取
             if model_type.lower() in ['svm', 'rnn']:
+                print("[DEBUG] 正在提取MFCC特征")  # 新增调试信息
                 mfcc_feature = model.extract_features()
                 if mfcc_feature is None:
+                    print("[ERROR] 特征提取失败")  # 新增调试信息
                     return jsonify({'error': '特征提取失败'}), 500
                     
         except ValueError as ve:
+            print(f"[ERROR] 创建模型失败: {str(ve)}")  # 新增调试信息
             return jsonify({'error': str(ve)}), 400
 
         if model is None:
+            print("[ERROR] 模型实例创建失败")  # 新增调试信息
             return jsonify({'error': 'Failed to create model instance'}), 500
 
         # 执行预测
-        mfcc_feature, _ = extract_mfcc(wav_bytes)
-        model.set_dataset(dataset_name)  # Set the dataset using the new meth
+        print(f"[DEBUG] 正在设置数据集: {dataset_name}")  # 新增调试信息
+        model.set_dataset(dataset_name)
+        
+        print("[DEBUG] 开始执行预测")  # 新增调试信息
         result = model.predict()
         if result is None:
+            print("[ERROR] 预测失败")  # 新增调试信息
             return jsonify({'error': 'Prediction failed'}), 500
 
         # 获取预测类别
         predicted_category = result['predicted_category']
         # MFCC特征可视化
-        mfcc_feature = mfcc_heatmap(mfcc_feature)
+        # mfcc_feature = mfcc_heatmap(mfcc_feature)
         confidence = result['confidence']
 
         features = []
         # 使用append方法逐个添加特征
         features.append(confidence)
 
-        features.append(mfcc_feature)
+        # features.append(mfcc_feature)
         # features.append(linear_spectrogram)
         
         features.append(spectrogram)
@@ -111,4 +123,5 @@ def predict():
         })
 
     except Exception as e:
+        print(f"[ERROR] 预测过程中发生异常: {str(e)}")  # 新增调试信息
         return jsonify({'error': str(e)}), 500

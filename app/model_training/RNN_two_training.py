@@ -98,7 +98,7 @@ def load_and_group_features(data_folder, file_name):
 
     # 保存 LabelEncoder 到文件
     folder_name = os.path.basename(data_folder.rstrip("/"))  # 获取 input_folder 的最后一个文件夹名
-    encoder_path = os.path.join("../models/label_encoder", f"{folder_name}_label_encoder.joblib")
+    encoder_path = os.path.join("../models/label_encoder", f"{folder_name}_RNN_label_encoder.joblib")
     current_dir = os.path.dirname(os.path.abspath(__file__))
     encoder_path = os.path.join(current_dir, encoder_path)
     joblib.dump(label_encoder, encoder_path)
@@ -212,7 +212,7 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, m
 # 主程序
 if __name__ == "__main__":
     # 用户提供的路径
-    input_folder = "../features/feature_extraction_2/CASIA"  # 包含 train.csv, val.csv, test.csv 的文件夹
+    input_folder = "../features/feature_extraction_2/CREMA-D"  # 包含 train.csv, val.csv, test.csv 的文件夹
     last_folder = os.path.basename(os.path.normpath(input_folder))
     model_output = f"../models/{last_folder}_rnn_2"  # 现在是文件夹路径
     pretrained_model_path = "../models/rnn_2.pth"

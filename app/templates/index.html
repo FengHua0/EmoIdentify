@@ -21,32 +21,40 @@
     />
     <style>
         body {
-            background-color: #f8f9fa;
+            background: linear-gradient(to right, #f7f9fb, #e1ecf4);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            padding-bottom: 50px;
         }
         h1 {
-            margin: 50px 0 30px;
-            font-size: 3rem;
-            color: #343a40;
+            margin: 40px 0 30px;
+            font-size: 2.8rem;
+            font-weight: 600;
+            color: #007bff;
+        }
+        .card {
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+            border: none;
+            border-radius: 1rem;
         }
         #result {
             margin-top: 20px;
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             font-weight: bold;
-            color: #ffc107;
-            white-space: pre-wrap; /* 保留换行符 */
+            color: #28a745;
+            white-space: pre-wrap;
+            background-color: #f0f9f0;
+            border: 1px solid #cde8cd;
+            padding: 10px;
+            border-radius: 0.5rem;
         }
         #feature-container {
             margin-top: 30px;
         }
-        footer {
-            margin-top: 50px;
-            font-size: 0.9rem;
-            color: rgba(0, 0, 0, 0.7);
-        }
-        /* 录音按钮样式 */
         .record-btn {
             margin-top: 15px;
             width: 100%;
+            font-size: 1.1rem;
         }
         .clear-btn {
             margin-top: 10px;
@@ -55,7 +63,29 @@
             color: red;
             font-weight: bold;
         }
+        select.form-control {
+            max-width: 200px;
+            display: inline-block;
+            font-size: 0.9rem;
+        }
+        .form-group label {
+            font-weight: 500;
+        }
+        footer {
+            margin-top: 50px;
+            font-size: 0.9rem;
+            color: rgba(0, 0, 0, 0.7);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
     </style>
+    
 </head>
 <body>
     <div class="container text-center">
@@ -108,12 +138,12 @@
                     <div class="form-group">
                         <label for="modelSelection">选择一个模型:</label>
                         <select class="form-control" id="modelSelection" name="modelSelection">
-                            {#<option value="svm">SVM</option>#}
-                            {#<option value="rnn">RNN</option>#}
+                            <option value="svm">SVM</option>
+                            <option value="rnn">RNN</option>
                             {#<option value="cnn">CNN</option>#}
                             {#<option value="contrastive">contrastive</option>#}
-                            <option value="npy_cnn">NpyCNN</option>
-                            <option value="npy_contrastive">npy_contrastive</option>
+                            <option value="npy_cnn">CNN-RNN</option>
+                            <option value="npy_contrastive">CNN-RNN+对比学习</option>
                             <!-- 根据需要添加更多模型 -->
                         </select>
                     </div>

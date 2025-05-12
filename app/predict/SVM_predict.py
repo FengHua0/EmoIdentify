@@ -4,6 +4,7 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 import warnings
 import matplotlib.pyplot as plt
 from io import BytesIO
+import os
 import base64
 
 from app.file_process.feature_extraction_1 import one_features_extract
@@ -12,9 +13,10 @@ from app.predict.factory_registry import register_model
 
 @register_model('svm')
 class SVM(BaseModel):
-    def __init__(self, processed_audio, sr):
+    def __init__(self, processed_audio, sr, dataset="CASIA"):
         super().__init__(processed_audio, sr)
-        self.MODEL_PATH = 'models/svm_model.joblib'
+        self.dataset = dataset
+        self.MODEL_PATH = f'models/{self.dataset}_svm_model.joblib'
         
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.MODEL_PATH = os.path.join(current_dir, self.MODEL_PATH)
@@ -132,3 +134,18 @@ class SVM(BaseModel):
         except Exception as e:
             print(f"预测时出错: {e}")
             return {'error': str(e)}
+
+    def set_dataset(self, dataset):
+        """设置数据集并重新加载相关资源"""
+        if dataset == self.dataset:
+            return  # 如果数据集相同则不需要重新加载
+        
+        self.dataset = dataset
+        # 更新路径
+        self.MODEL_PATH = f'models/{self.dataset}_svm_model.joblib'
+        
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.MODEL_PATH = os.path.join(current_dir, self.MODEL_PATH)
+        
+        # 重新加载模型
+        self.load_model()
