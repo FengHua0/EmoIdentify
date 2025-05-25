@@ -1,8 +1,114 @@
-Speech Emotion Recognition Analysis and Implementation Graduation Project
+# 语音情感识别系统软件文档
+
+## 一、系统概述
+
+本系统是一个基于深度学习的语音情感识别平台，支持音频录制与上传、模型选择、情感分析及特征可视化展示。用户可通过上传音频文件或直接录音的方式进行情感识别，系统将返回预测的情感标签及相应的特征图谱，广泛适用于人机交互、用户满意度分析、教育反馈等场景。
+
+系统采用 B/S 架构，前后端分离设计。前端使用原生 JavaScript 结合 HTML 和 Bootstrap 构建，界面交互通过 SweetAlert 增强用户体验，具备较高的兼容性和响应性。后端基于 Flask 实现音频处理与情感分类，整体系统具有良好的可维护性与可扩展性，支持跨平台部署。
+
+## 二、系统功能
+
+### 1. 音频采集
+
+- 支持浏览器麦克风录音（实时采集）
+- 支持上传本地 `.wav`、`.mp3` 音频文件
+
+### 2. 模型选择
+
+- 支持SVM、RNN、CNN-RNN等多种模型
+- 可灵活选择训练数据集（如CASIA、EMODB、CREMA-D）
+
+### 3. 特征提取与预测
+
+- 支持提取Mel频谱图与MFCC特征
+- 基于选定模型进行情感识别
+
+### 4. 结果展示
+
+- 展示预测情感类别与置信度
+- 图形化展示频谱图、波形图、置信图等
+
+### 5. 用户交互体验
+
+- 操作流程简洁，信息反馈清晰
+- 心跳机制保障后端服务可用性
+
+## 三、系统架构
+
+- **前端：** 使用 **React** 构建组件化界面，结合 **Tailwind CSS** 实现响应式美观布局，状态管理采用 **Zustand**，提升界面响应效率与可维护性。
+- **后端：** 基于 **Flask** 搭建 RESTful 接口，使用 **Librosa** 进行音频特征提取，支持 **PyTorch** 和 **TensorFlow** 作为深度学习模型框架，提供灵活的模型调用能力。
+- **通信：** 前后端通过 **RESTful API** 通信，数据以 **JSON** 格式交互，接口清晰、扩展性强。
+- **数据存储：** 系统以临时缓存方式保存上传音频和预测结果，无需持久化数据库，保障用户隐私并简化部署流程。
+
+## 四、模块设计
+
+### 1. 前端模块
+
+- 音频输入组件：实现录音与上传
+- 控制按钮组：开始录音、识别、清除等
+- 结果展示区：使用Tab标签展示图像结果
+- 状态提示机制：SweetAlert/Toast反馈信息
+
+### 2. 后端模块
+
+- 音频处理模块：格式转换、去噪、采样率统一
+- 特征提取模块：支持MFCC与Mel Spectrogram提取
+- 模型推理模块：加载并调用用户所选模型
+- 心跳服务模块：每5秒响应前端心跳请求
+
+## 五、部署说明
+
+### 1. 环境依赖
+
+- Python 3.11+
+- Node.js 16+
+- pip 包：Flask, librosa, numpy, scikit-learn, torch/tensorflow 等
+- 前端依赖：React、React DOM、Zustand、Tailwind CSS（及 PostCSS、Autoprefixer）、shadcn/ui、react-hot-toast、clsx、framer-motion，以及构建工具如 Vite，和代码质量工具如 ESLint、Prettier。
+
+### 2. 后端部署
+
+```bash
+cd EmoIdentify
+pip install -r requirements.txt
+python Traerun.py
+```
+
+### 3. 云端部署建议
+
+- 使用Nginx反向代理前后端接口
+- 推荐部署于Ubuntu服务器或使用云平台（如阿里云、腾讯云）
+
+## 六、使用方法
+
+1. 打开浏览器访问系统页面
+2. 选择录音或上传音频文件
+3. 选择情感识别模型与数据集
+4. 点击“识别”按钮开始分析
+5. 查看识别结果及特征图展示
+
+## 七、常见问题与解决方案
+
+| 问题     | 说明             | 解决方法                     |
+| -------- | ---------------- | ---------------------------- |
+| 无法录音 | 浏览器权限未开启 | 检查麦克风权限设置           |
+| 上传失败 | 文件格式不支持   | 请使用 `.wav` 或 `.mp3` 文件 |
+| 无法识别 | 后端服务未启动   | 检查Flask服务是否运行        |
+| 页面空白 | 前端未编译成功   | 重启前端开发服务器           |
+
+## 八、后续优化方向
+
+- 引入多模态数据（视频、人脸）提升识别准确率
+- 支持跨语言模型迁移与训练
+- 增加用户自定义模型与数据上传功能
+- 部署为移动端小程序或微信插件
+
+
+
+
 
 DataSet:
 CREMA-D : https://github.com/CheyneyComputerScience/CREMA-D
 
-Toronto emotional speech set (TESS) : https://borealisdata.ca/dataset.xhtml?persistentId=doi:10.5683/SP2/E8H2MF&version=1.0
+EmoDB：http://emodb.bilderbar.info/docu/#emodb
 
-RAVDESS (The Ryerson Audio-Visual Database of Emotional Speech and Song) : https://zenodo.org/records/1188976
+CASIA：[CASIA汉语情感音频语料库-1200音频版本_数据集-飞桨AI Studio星河社区](https://aistudio.baidu.com/datasetdetail/209512)

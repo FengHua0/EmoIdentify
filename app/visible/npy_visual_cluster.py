@@ -39,7 +39,7 @@ MODEL_REGISTRY = {
     }
 }
 
-def visualize_clusters(features, labels, speaker_ids, save_path=None, title_prefix=""): # 移除 method 参数
+def visualize_clusters(features, labels, speaker_ids, save_path=None, title_prefix=""):
     """
     可视化聚类结果 (使用 t-SNE)
     Args:
@@ -50,6 +50,9 @@ def visualize_clusters(features, labels, speaker_ids, save_path=None, title_pref
         title_prefix: 标题前缀 (例如模型类型)
     """
     print(f"开始使用 t-SNE 进行可视化...")
+    # 设置全局字体大小
+    plt.rcParams['font.size'] = 18  # 你可以根据需要调整为更大
+
     # 降维
     reducer = TSNE(n_components=2, random_state=42, perplexity=min(30, len(features)-1))
     embeddings = reducer.fit_transform(features)
@@ -95,25 +98,39 @@ def visualize_clusters(features, labels, speaker_ids, save_path=None, title_pref
                   color='w',
                   label=f'Emotion {label}',
                   markerfacecolor='grey', # 使用灰色表示通用情感标记
-                  markersize=10)
+                  markersize=14)
         for i, label in enumerate(unique_labels)
     ]
-    leg1 = plt.legend(handles=emotion_legend_elements, title='Emotions', bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0.)
+    leg1 = plt.legend(
+        handles=emotion_legend_elements,
+        title='Emotions',
+        bbox_to_anchor=(1.02, 1),
+        loc='upper left',
+        borderaxespad=0.,
+        fontsize=16,
+        title_fontsize=18
+    )
 
     # 说话人图例 (如果说话人数量不多)
-    if len(unique_speakers) <= 20: # 限制说话人图例数量避免混乱
+    if len(unique_speakers) <= 20:
         speaker_legend_elements = [
             plt.Line2D([0], [0],
-                      marker='o', # 使用统一形状
+                      marker='o',
                       color='w',
                       label=f'Speaker {speaker}',
-                      markerfacecolor=colors(j), # 使用对应颜色
-                      markersize=10)
+                      markerfacecolor=colors(j),
+                      markersize=14)
             for j, speaker in enumerate(unique_speakers)
         ]
-        # 将第二个图例添加到第一个下方
-        plt.legend(handles=speaker_legend_elements, title='Speakers', bbox_to_anchor=(1.02, 0.5), loc='center left', borderaxespad=0.)
-        # 确保第一个图例仍在图中
+        plt.legend(
+            handles=speaker_legend_elements,
+            title='Speakers',
+            bbox_to_anchor=(1.02, 0),
+            loc='lower left',
+            borderaxespad=0.,
+            fontsize=16,
+            title_fontsize=18
+        )
         plt.gca().add_artist(leg1)
 
 
@@ -168,7 +185,7 @@ def generate_paths(model_type, dataset_name="CREMA-D"):
         paths['model_path'] = os.path.join(base_model_dir, f"{dataset_name}_npy_cnn_model.pth")
 
     elif model_type == 'npy_contrastive':
-        paths['model_path'] = os.path.join(base_model_dir, f"npy_contrastive_model.pth")
+        paths['model_path'] = os.path.join(base_model_dir, f"{dataset_name}_npy_contrastive_model.pth")
     else:
         raise ValueError(f"未知的模型类型: {model_type}")
 
@@ -400,7 +417,7 @@ def quantitative_speaker_analysis(features, speaker_ids, labels=None, class_indi
 if __name__ == "__main__":
 
     model_type = "npy_contrastive"  # 模型类型："npy_cnn" 或 "npy_contrastive"
-    dataset_name = "EmoDB"  # 可以修改为： "CREMA-D" "EmoDB" 或 "CASIA"
+    dataset_name = "CREMA-D"  # 可以修改为： "CREMA-D" "EmoDB" 或 "CASIA"
     batch_size = 64
 
     # 1. 生成路径 (传入数据集名称)

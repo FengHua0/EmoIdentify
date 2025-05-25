@@ -326,19 +326,19 @@ def train_model(model, train_loader, val_loader, device, model_output, log_file,
               f"Val Loss: {val_loss:.4f} (Cls: {val_cls_loss:.4f}, Con: {val_con_loss:.4f}), Val Acc: {val_accuracy:.4f}, "
               f"Time: {epoch_time:.2f}s")
 
-        # 日志记录也可以加入单独损失项
-        log_results(log_file, train_loss, train_accuracy, val_loss, val_accuracy)
+        # # 日志记录也可以加入单独损失项
+        # log_results(log_file, train_loss, train_accuracy, val_loss, val_accuracy)
  
-        # 确保模型输出目录存在
-        os.makedirs(model_output, exist_ok=True)
-        model_path = os.path.join(model_output, f"npy_contrastive_model_{epoch + 1}.pth")
+        # # 确保模型输出目录存在
+        # os.makedirs(model_output, exist_ok=True)
+        # model_path = os.path.join(model_output, f"npy_contrastive_model_{epoch + 1}.pth")
         
-        try: 
-            torch.save(model.state_dict(), model_path)
-            print(f"模型已保存到: {model_path}")
-        except Exception as e:
-            print(f"保存模型时出错: {e}")
-            continue
+        # try: 
+        #     torch.save(model.state_dict(), model_path)
+        #     print(f"模型已保存到: {model_path}")
+        # except Exception as e:
+        #     print(f"保存模型时出错: {e}")
+        #     continue
 
 def load_datasets(data_folder, batch_size=64, target_length=100):
     """
